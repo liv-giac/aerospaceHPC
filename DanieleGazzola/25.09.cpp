@@ -2,15 +2,17 @@
 #include <iostream>
 #include <math.h>
 #include <chrono>
-#include <vector>
 
-#define N 10000000
+#define N 100000000
 #define X 1.0
 
 int main(int argc, char** argv){
 
     double dx, error, a, w;
-    std::vector<double> T(N), diag(N), rhs(N), sol(N);
+    double* T = new double[N];
+    double* diag = new double[N];
+    double* rhs = new double[N];
+    double* sol = new double[N];
     std::chrono::duration<double> elapsed, elapsed2;
 
     for(int n = 10; n <= N; ){
@@ -73,6 +75,11 @@ int main(int argc, char** argv){
 
         n *= 10;
     }
+
+    delete[] T;
+    delete[] diag;
+    delete[] rhs;
+    delete[] sol;
 
     return 0;
 }
