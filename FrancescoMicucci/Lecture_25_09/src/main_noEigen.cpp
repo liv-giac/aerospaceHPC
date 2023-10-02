@@ -5,13 +5,16 @@
 
 int main(int argc, char* argv[])
 {
-    const int N[4] = {100, 1000, 10000, 100000};
+    const int N[6] = {100, 1000, 10000, 100000, 1000000, 10000000};
     std::ofstream fout("../data.csv");
     fout << "n" << "," << "SecondsPerPoint" << "\n";
 
     for(int n:N){
         double deltaX = 1.0/(n+1), w, error = 0;
-        double diag[n], f[n], exact_solution[n], solution[n];
+        double* diag = new double[n];
+        double* f = new double[n];
+        double* exact_solution = new double[n];
+        double* solution = new double[n];
         double upper_under_diag = -1.0/(deltaX*deltaX);
         std::fill_n(diag, n, 2.0/(deltaX*deltaX));
 
@@ -54,6 +57,11 @@ int main(int argc, char* argv[])
         std::cout << "Seconds per point: " << (assembly_duration.count() + solve_duration.count())/n << std::endl << std::endl;
 
         fout << n << "," << (assembly_duration.count() + solve_duration.count())/n << "\n";
+
+        delete[] diag;
+        delete[] f;
+        delete[] solution;
+        delete[] exact_solution;
     }
 
     fout.close();
