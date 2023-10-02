@@ -5,9 +5,9 @@
 
 int main(int argc, char* argv[])
 {
-    const int N[6] = {100, 1000, 10000, 100000, 1000000, 10000000};
+    const int N[6] = {100, 200, 300, 400, 500, 600};
     std::ofstream fout("../data.csv");
-    fout << "n" << "," << "SecondsPerPoint" << "\n";
+    fout << "n," << "deltaX," << "SecondsPerPoint," << "err" << "\n";
 
     for(int n:N){
         double deltaX = 1.0/(n+1), w, error = 0;
@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
 
         for(int i=0; i<n; i++)
             error += (solution[i] - exact_solution[i]) * (solution[i] - exact_solution[i]);
+        error = error / n;
         error = std::sqrt(error);
 
         std::cout << "Error with " << n << " points: " << error << std::endl; 
@@ -56,7 +57,7 @@ int main(int argc, char* argv[])
         std::cout << "Solving duration: " << solve_duration.count()*1000 << " milliseconds " << std::endl;
         std::cout << "Seconds per point: " << (assembly_duration.count() + solve_duration.count())/n << std::endl << std::endl;
 
-        fout << n << "," << (assembly_duration.count() + solve_duration.count())/n << "\n";
+        fout << n << "," << deltaX << "," << (assembly_duration.count() + solve_duration.count())/n << "," << error << "\n";
 
         delete[] diag;
         delete[] f;
