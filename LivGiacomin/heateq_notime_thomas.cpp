@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
     auto tot=elapsed+elapsed2;
         std::cout << "N: " << n << std::endl;
         std::cout << "Error: " << error << std::endl;
+        std::cout << "Error scaled by n: " << error << std::endl;
         std::cout << "Total time: " <<tot.count()<<" (of which "<<100*elapsed.count()/tot.count()<<"% setup and "<<100*elapsed2.count()/tot.count()<<"% solve) "<<std::endl;
         std::cout << "Setup time scaled by n: " << elapsed.count() / n << std::endl;
         std::cout << "Solve time scaled by n: " << elapsed2.count() / n << std::endl;
