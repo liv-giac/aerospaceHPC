@@ -142,7 +142,7 @@ int main()
 
         // std::cout << "Setup time per cell: " << setup_time << " ns = " << (double)setup_time / 1.e9 << "s" << std::endl;
         std::cout << "Average solve time per iteration: " << solve_time << " ns = " << (double)solve_time / 1.e9 << "s" << std::endl;
-        std::cout << "Average solve time per iteration, per cell: " << solve_time << " ns = " << (double)solve_time / ((double)space_steps * 1.e9) << "s" << std::endl;
+        std::cout << "Average solve time per iteration, per cell: " << (double)solve_time / ((double)space_steps) << " ns = " << (double)solve_time / ((double)space_steps * 1.e9) << "s" << std::endl;
         std::cout << "Error time per cell: " << error_time << " ns = " << (double)error_time / 1.e9 << "s" << std::endl;
         std::cout << "Total time per cell: " << total_time << " ns = " << (double)total_time / 1.e9 << "s" << std::endl;
 
