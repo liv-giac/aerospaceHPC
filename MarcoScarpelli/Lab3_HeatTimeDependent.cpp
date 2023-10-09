@@ -138,7 +138,7 @@ int main()
 
         std::cout << "Total solve time: " << solve_time << " ns = " << (double)solve_time / 1.e9 << "s" << std::endl;
 
-        solve_time /= time_steps;
+        solve_time /= (double)time_steps;
 
         // std::cout << "Setup time per cell: " << setup_time << " ns = " << (double)setup_time / 1.e9 << "s" << std::endl;
         std::cout << "Average solve time per iteration: " << solve_time << " ns = " << (double)solve_time / 1.e9 << "s" << std::endl;
