@@ -29,7 +29,7 @@ int main(int argc, char** argv)
     dt = 0.0;
 
     cout << "========== N = "<< n << " ============="<<endl<<endl;
-    
+
     dx = X / (double)(n - 1);
     dt = dx * dx * 0.25;
 
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 
     cout << "Number of iteration = "<< iter << endl;
     cout << "Absolute time elapsed = " << duration.count() << " microseconds" << endl;
-    cout << "Time elapsed = " << duration.count() / (double) n << " microseconds" << endl;
+    cout << "Time elapsed = " << duration.count() / ((1.0/dx) * (1.0/dt))  << " microseconds (divided by "<< ((1.0/dx) * (1.0/dt)) <<")"<< endl;
 
     double err = 0.0;
     double sum = 0.0;
