@@ -6,7 +6,7 @@
 int main(int argc, char* argv[])
 {
     const int N[6] = {100, 200, 300, 400, 500, 600};
-    std::ofstream fout("../data.csv");
+    std::ofstream fout("data.csv");
     fout << "n," << "deltaX," << "SecondsPerPoint," << "err" << "\n";
 
     for(int n:N){
@@ -49,8 +49,8 @@ int main(int argc, char* argv[])
 
         for(int i=0; i<n; i++)
             error += (solution[i] - exact_solution[i]) * (solution[i] - exact_solution[i]);
-        error = error / n;
         error = std::sqrt(error);
+        error = error / n;
 
         std::cout << "Error with " << n << " points: " << error << std::endl; 
         std::cout << "Assembly duration: " << assembly_duration.count()*1000 << " milliseconds " << std::endl;

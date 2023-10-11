@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-inputData = pd.read_csv('../data.csv', sep = ",")
+inputData = pd.read_csv('data.csv', sep = ",")
 
 plt.plot(inputData.deltaX, inputData.err, 'b--o', label="error")
 plt.plot(inputData.deltaX, inputData.deltaX**1, 'k--', label="deltaX")
