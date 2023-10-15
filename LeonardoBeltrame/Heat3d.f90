@@ -30,16 +30,12 @@ PROGRAM heat34
         !mod4 = MOD(i,n+1)
 
         ! upper second diagonal T_i+1,j,k
-        IF( (i .LE. matn-1) .AND. (mod3 .EQ. 0) ) THEN   
-            mat(i,i+1) = 0.d0
-        ELSE IF ( (i .LE. matn-1) .AND. (mod3 .NE.  0) ) THEN
+        IF ( (i .LE. matn-1)) THEN
             mat(i,i+1) = one_2dx2   
         END IF
 
         ! lower second diagonal T_i-1,j,k
-        IF((i .GE. 2) .AND. (mod3 .EQ. N-1) ) THEN
-            mat(i, i-1) = 0.d0
-        ELSE IF ((i .GE. 2) .AND. (mod4 .NE. N-1) ) THEN
+        IF ((i .GE. 2)) THEN
             mat(i, i-1) = one_2dx2
         END IF
 
@@ -71,5 +67,7 @@ PROGRAM heat34
         END DO
         WRITE(*,*) ''
     END DO
+
+    
 
 END PROGRAM
