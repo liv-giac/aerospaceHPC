@@ -83,15 +83,11 @@ int main(int argc, char** argv){
     for(int i = 1; i <= N; i++)
         sin[i - 1] = std::sin(i * dx);
 
-    //exact_sol Time = 0
+    //exact_sol
     for(int i = 0; i < size; i++)
         exact_sol[i] = sin[i % N] * sin[(i % (N * N)) / N] * sin[i / (N * N)];
 
-    //sol Time = 0
-    for(int i = 0; i < size; i++)
-        sol[i] = 0;
-
-    //rhs Time = 0
+    //rhs
     for(int i = 0; i < size; i++){
 
         //forcing term
