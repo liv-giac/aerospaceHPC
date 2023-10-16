@@ -180,6 +180,32 @@ int main()
             }
         }
 
+        // Middle section
+        //  TODO
+        for (unsigned int i = 0; i < space_steps; ++i)
+        {
+            for (unsigned int j = 0; j < space_steps; ++j)
+            {
+                for (unsigned int k = 0; k < space_steps; ++k)
+                {
+                    if (i > 0)
+                        matrix[get_idx_matr(get_idx_vec(i - 1, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+                    if (j > 0)
+                        matrix[get_idx_matr(get_idx_vec(i, j - 1, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+                    if (k > 0)
+                        matrix[get_idx_matr(get_idx_vec(i, j, k - 1, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+                    if (i < space_steps - 1)
+                        matrix[get_idx_matr(get_idx_vec(i + 1, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+                    if (j < space_steps - 1)
+                        matrix[get_idx_matr(get_idx_vec(i, j + 1, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+                    if (k < space_steps - 1)
+                        matrix[get_idx_matr(get_idx_vec(i, j, k + 1, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
+
+                    matrix[get_idx_matr(get_idx_vec(i, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += diag_coeff;
+                }
+            }
+        }
+
         for (unsigned int time_step = 0; time_step < time_steps; ++time_step)
         {
             std::cout << "Time step: " << time_step << std::endl;
@@ -209,32 +235,6 @@ int main()
                 }
             }
             // Init matrix
-
-            // Middle section
-            //  TODO
-            for (unsigned int i = 0; i < space_steps; ++i)
-            {
-                for (unsigned int j = 0; j < space_steps; ++j)
-                {
-                    for (unsigned int k = 0; k < space_steps; ++k)
-                    {
-                        if (i > 0)
-                            matrix[get_idx_matr(get_idx_vec(i - 1, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-                        if (j > 0)
-                            matrix[get_idx_matr(get_idx_vec(i, j - 1, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-                        if (k > 0)
-                            matrix[get_idx_matr(get_idx_vec(i, j, k - 1, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-                        if (i < space_steps - 1)
-                            matrix[get_idx_matr(get_idx_vec(i + 1, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-                        if (j < space_steps - 1)
-                            matrix[get_idx_matr(get_idx_vec(i, j + 1, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-                        if (k < space_steps - 1)
-                            matrix[get_idx_matr(get_idx_vec(i, j, k + 1, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += minus_one_over_2_deltaX_sqr;
-
-                        matrix[get_idx_matr(get_idx_vec(i, j, k, space_steps), get_idx_vec(i, j, k, space_steps), num_elements)] += diag_coeff;
-                    }
-                }
-            }
 
             if (solve_system(matrix, rhs_vec, solution_vec, num_elements) == exit_codes::FAILURE)
             {
