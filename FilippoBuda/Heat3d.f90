@@ -1,6 +1,6 @@
 PROGRAM heat34
     IMPLICIT NONE
-    INTEGER, PARAMETER :: n = 3
+    INTEGER, PARAMETER :: n = 5
     INTEGER :: matn
     REAL(KIND = 8),  DIMENSION(:,:), ALLOCATABLE :: mat
     REAL(KIND = 8) :: dx, dt, len , time
@@ -27,7 +27,7 @@ PROGRAM heat34
         mat(i,i) = one_dt + three_dx2
         
         modn = MOD(i,n)
-        modn_n = MOD(i, (n*n)+1) /n+1
+        modn_n = MOD(i, (n*n) + 1) / n+1
 
         ! upper second diagonal T_i+1,j,k
         IF( (i .LE. matn-1) .AND. (modn .EQ. 0) ) THEN   
@@ -44,9 +44,9 @@ PROGRAM heat34
         END IF
 
         ! right diagonals T_i,j+1,k !!!!!!!!!!!!!!!!!!!!!!
-        IF ( (i .LE. (matn - n) ) .AND. (modn_n .EQ. 3) ) THEN
+        IF ( (i .LE. (matn - n) ) .AND. (modn_n .EQ. n) ) THEN
             mat (i, i + n) = 0
-        ELSE IF ( (i .LE. (matn - n )) .AND. (modn_n .NE. 3) ) THEN
+        ELSE IF ( (i .LE. (matn - n )) .AND. (modn_n .NE. n) ) THEN
             mat(i, i + n) = one_2dx2
         END IF
 
