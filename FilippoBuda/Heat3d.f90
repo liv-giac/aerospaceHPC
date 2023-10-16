@@ -6,7 +6,7 @@ PROGRAM heat34
     REAL(KIND = 8) :: dx, dt, len , time
     INTEGER :: i, j
     REAL(KIND = 8) :: one_dt, three_dx2, one_2dx2
-    INTEGER :: mod3,mod4
+    INTEGER :: modn, modn_n
 
     len = 1.d0
     time = 1.d0
@@ -26,48 +26,52 @@ PROGRAM heat34
         ! diagonal T_i,j,k
         mat(i,i) = one_dt + three_dx2
         
-        mod3 = MOD(i,n)
-        mod4 = MOD(i,n+1)
+        modn = MOD(i,n)
+        modn_n = MOD(i, (n*n)+1) /n+1
 
         ! upper second diagonal T_i+1,j,k
-        IF( (i .LE. matn-1) .AND. (mod3 .EQ. 0) ) THEN   
+        IF( (i .LE. matn-1) .AND. (modn .EQ. 0) ) THEN   
             mat(i,i+1) = 0.d0
-        ELSE IF ( (i .LE. matn-1) .AND. (mod3 .NE.  0) ) THEN
+        ELSE IF ( (i .LE. matn-1) .AND. (modn .NE.  0) ) THEN
             mat(i,i+1) = one_2dx2 
         END IF
 
         ! lower second diagonal T_i-1,j,k
-        IF((i .GE. 2) .AND. (mod4 .EQ. 0) ) THEN
+        IF((i .GE. 2) .AND.  ( modn .EQ. 1 ) ) THEN
             mat(i, i-1) = 0.d0
-        ELSE IF ((i .GE. 2) .AND. (mod4 .NE. 0) ) THEN
+        ELSE IF ((i .GE. 2) .AND. ( modn .NE. 1 )) THEN
             mat(i, i-1) = one_2dx2
         END IF
 
-        ! right diagonals T_i,j+1,k
-        IF ( i .LE. (matn - 3)) THEN
-            mat (i, i + 3) = one_2dx2
+        ! right diagonals T_i,j+1,k !!!!!!!!!!!!!!!!!!!!!!
+        IF ( (i .LE. (matn - n) ) .AND. (modn_n .EQ. 3) ) THEN
+            mat (i, i + n) = 0
+        ELSE IF ( (i .LE. (matn - n )) .AND. (modn_n .NE. 3) ) THEN
+            mat(i, i + n) = one_2dx2
         END IF
 
+        ! left diagonal T_i,j-1,k
+        IF ((i .GE. 4) .AND. (modn_n .EQ. 1)  ) THEN
+            mat (i, i - n) = 0
+        ELSE IF ((i .GE. 4) .AND. (modn_n .NE. 1)  ) THEN
+            mat (i, i - n) = one_2dx2
+        END IF
+        
         ! rightmost diagonal T_i,j,k+1
         IF ( i .LE. (matn - n**2)) THEN
-            mat (i, i + 9) = one_2dx2
+            mat (i, i + n**2) = one_2dx2
         END IF
 
         ! leftmost diagonal T_i,j,k-1
-        IF (i .GE. 4) THEN
-            mat (i, i - 3) = one_2dx2
-        END IF
-        
-        ! left diagonal T_i,j-1,k
-        IF (i .GE. 10) THEN
-            mat (i, i - 9) = one_2dx2
+        IF (i .GE. (n**2 + 1)) THEN
+            mat (i, i - n**2) = one_2dx2
         END IF
 
     END DO
 
     DO i=1, matn
         DO j=1, matn
-            WRITE(*, '(I4,X)', advance='no') NINT((mat(i,j)))
+            WRITE(*, '(I3,X)', advance='no') NINT((mat(i,j)))
         END DO
         WRITE(*,*) ''
     END DO
