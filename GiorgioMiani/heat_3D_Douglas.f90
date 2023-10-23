@@ -1,6 +1,5 @@
 
 PROGRAM Heat_Eq_TD_1D
-    
     IMPLICIT NONE
 
     INTEGER ,PARAMETER :: Nx = 100, Nt = 100
@@ -12,28 +11,30 @@ PROGRAM Heat_Eq_TD_1D
     REAL(KIND = 8) :: t
     REAL(KIND = 8) :: w
     REAL(KIND = 8), DIMENSION(1:dim) :: rhs, old_solution, solution, b, real_solution
-    real(kind = 8) :: a
+    real(kind = 8) :: a, sin_1
     REAL(KIND = 8) :: error = 0.d0
     real(kind = 8), DIMENSION(Nx) :: xsin
-    REAL :: start1, finish1, total1, start2, finish2, total2, start3, finish3, total3
+    REAL :: start, finish, startx, finishx, totalx, starty, finishy, totaly, startz, finishz, totalz
     INTEGER ::  i
     INTEGER :: j
     INTEGER :: k
 
+
     DO i = 1, Nx
         xsin(i) = sin(i * deltaX)
     END DO
+    sin_1 = sin(1.d0)
 
     old_solution = 0.d0
     b = diag
     a = extra_diag
     t = 0.d0 + deltaT
 
-    !call cpu_time(start)
+    call cpu_time(start)
 
     DO WHILE ( t <= 1.d0)
 
-        call cpu_time(start1)
+        call cpu_time(startx)
         
         !RHS
         !THOMAS ON X
@@ -48,7 +49,7 @@ PROGRAM Heat_Eq_TD_1D
                     if ( i < Nx) then
                         rhs(findex(i, j, k, Nx)) = rhs(findex(i, j, k, Nx)) + deltaT*(1/(deltax2))*old_solution(findex(i + 1, j, k, Nx))
                     else
-                        rhs(findex(Nx, j, k, Nx)) = rhs(findex(Nx, j, k, Nx)) + deltaT*(1/(deltax2))*(sin(1.d0)*xsin(j)*xsin(k)*sin(t))
+                        rhs(findex(Nx, j, k, Nx)) = rhs(findex(Nx, j, k, Nx)) + deltaT*(1/(deltax2))*(sin_1*xsin(j)*xsin(k)*sin(t))
                     end if
                     if ( j > 1 ) then
                         rhs(findex(i, j, k, Nx)) = rhs(findex(i, j, k, Nx)) + deltaT*(1/(deltax2))*old_solution(findex(i, j - 1, k, Nx))
@@ -56,7 +57,7 @@ PROGRAM Heat_Eq_TD_1D
                     if ( j < Nx ) then
                         rhs(findex(i, j, k, Nx)) = rhs(findex(i, j, k, Nx)) + deltaT*(1/(deltax2))*old_solution(findex(i, j + 1, k, Nx))
                     else
-                        rhs(findex(i, Nx, k, Nx)) = rhs(findex(i, Nx, k, Nx)) + deltaT*(1/(deltax2))*(sin(1.d0)*xsin(i)*xsin(k)*sin(t))                
+                        rhs(findex(i, Nx, k, Nx)) = rhs(findex(i, Nx, k, Nx)) + deltaT*(1/(deltax2))*(sin_1*xsin(i)*xsin(k)*sin(t))                
                     end if
                     if ( k > 1 ) then
                         rhs(findex(i, j, k, Nx)) = rhs(findex(i, j, k, Nx)) + deltaT*(1/(deltax2))*old_solution(findex(i,j, k - 1, Nx))
@@ -64,16 +65,26 @@ PROGRAM Heat_Eq_TD_1D
                     if ( k < Nx ) then
                         rhs(findex(i, j, k, Nx)) = rhs(findex(i, j, k, Nx)) + deltaT*(1/(deltax2))*old_solution(findex(i, j, k + 1, Nx))
                     else
-                        rhs(findex(i, j, Nx, Nx)) = rhs(findex(i, j, Nx, Nx)) + deltaT*(1/(deltax2))*(sin(1.d0)*xsin(j)*xsin(i)*sin(t))                
+                        rhs(findex(i, j, Nx, Nx)) = rhs(findex(i, j, Nx, Nx)) + deltaT*(1/(deltax2))*(sin_1*xsin(j)*xsin(i)*sin(t))                
                     end if
                 end do 
+            end do
+        end do
+
+        do k = 1, Nx
+            do j = 1, Nx
                 !BCS
-                rhs(findex(Nx, j, k, Nx)) = rhs(findex(Nx, j, k, Nx)) - extra_diag*sin(1.d0)*xsin(j)*xsin(k)*(sin(t + deltaT) - sin(t))                
+                rhs(findex(Nx, j, k, Nx)) = rhs(findex(Nx, j, k, Nx)) - extra_diag*sin_1*xsin(j)*xsin(k)*(sin(t + deltaT) - sin(t))                
                 do i = 2, Nx
                     w = a/b(findex(i - 1, j, k, Nx))  
                     rhs(findex(i, j, k ,Nx)) = rhs(findex(i, j, k ,Nx)) - w*rhs(findex(i - 1, j, k, Nx))                      
                     b(findex(i, j, k, Nx)) = b(findex(i, j, k, Nx)) - w*a
-                end do                
+                end do    
+            end do
+        end do
+
+        do k = 1, Nx
+            do j = 1, Nx                 
                 solution(findex(Nx, j, k, Nx)) = rhs(findex(Nx, j, k, Nx))/b(findex(Nx, j, k, Nx)) 
                 do i = Nx - 1,1, -1 
                     solution(findex(i, j, k, Nx)) = (rhs(findex(i, j, k, Nx)) - a * solution(findex(i + 1, j, k, Nx)))/b(findex(i, j, k, Nx))                  
@@ -81,21 +92,21 @@ PROGRAM Heat_Eq_TD_1D
             end do
         end do 
 
-        call cpu_time(finish1)
+        call cpu_time(finishx)
 
-        total1 = total1 + finish1 - start1
+        totalx = totalx + finishx - startx
 
-        call cpu_time(start2)
+        call cpu_time(starty)
 
         !THOMAS ON Y
         rhs = solution
         b = diag
         do k = 1, Nx
-            do j = 2, Nx
+            do j = 2 , Nx
                 do i = 1, Nx
                     if(j == Nx) then
                         !BCS
-                        rhs(findex(i, Nx, k, Nx)) = rhs(findex(i, Nx, k, Nx)) - extra_diag*sin(1.d0)*xsin(i)*xsin(k)*(sin(t + deltaT) - sin(t))
+                        rhs(findex(i, Nx, k, Nx)) = rhs(findex(i, Nx, k, Nx)) - extra_diag*sin_1*xsin(i)*xsin(k)*(sin(t + deltaT) - sin(t))
                     end if
                     w = a/b(findex(i, j - 1, k, Nx))  
                     rhs(findex(i, j, k ,Nx)) = rhs(findex(i, j, k ,Nx)) - w*rhs(findex(i, j - 1, k, Nx))                      
@@ -103,9 +114,9 @@ PROGRAM Heat_Eq_TD_1D
                 end do   
             end do
         end do
-        
+
         do k = 1, Nx
-            do j = Nx - 1, 1, -1
+            do j = Nx - 1, 1, -1        
                 do i = 1, Nx
                     solution(findex(i, Nx, k, Nx)) = rhs(findex(i, Nx, k, Nx))/b(findex(i, Nx, k, Nx))  
                     solution(findex(i, j, k, Nx)) = (rhs(findex(i, j, k, Nx)) - a * solution(findex(i, j + 1, k, Nx)))/b(findex(i, j, k, Nx))                  
@@ -113,11 +124,11 @@ PROGRAM Heat_Eq_TD_1D
             end do
         end do
 
-        call cpu_time(finish2)
+        call cpu_time(finishy)
 
-        total2 = total2 + finish2 - start2
+        totaly = totaly + finishy - starty
 
-        call cpu_time(start3)
+        call cpu_time(startz)
         !THOMAS ON Z
         rhs = solution
         b = diag
@@ -126,7 +137,7 @@ PROGRAM Heat_Eq_TD_1D
                 do i = 1, Nx
                     if ( k == Nx ) then
                         !BCS
-                        rhs(findex(i, j,Nx, Nx)) = rhs(findex(i, j, Nx, Nx)) - extra_diag*sin(1.d0)*xsin(j)*xsin(i)*(sin(t + deltaT) - sin(t)) 
+                        rhs(findex(i, j,Nx, Nx)) = rhs(findex(i, j, Nx, Nx)) - extra_diag*sin_1*xsin(j)*xsin(i)*(sin(t + deltaT) - sin(t)) 
                     end if
                     w = a/b(findex(i, j,k - 1, Nx))  
                     rhs(findex(i, j, k ,Nx)) = rhs(findex(i, j, k ,Nx)) - w*rhs(findex(i, j, k - 1, Nx))                      
@@ -150,31 +161,31 @@ PROGRAM Heat_Eq_TD_1D
 
         t = t + deltaT
 
-        call cpu_time(finish3)
+        call cpu_time(finishz)
 
-        total3 = total3 + finish3 - start3
+        totalz = totalz + finishz - startz
 
     END DO
 
 
-    !call cpu_time(finish)
+    call cpu_time(finish)
 
     Write (*,*) "Time x axis: "
-    Write (*,*) total1
+    Write (*,*) totalx
 
     Write (*,*) "Time y axis: "
-    Write (*,*) total2
+    Write (*,*) totaly
 
     Write (*,*) "Time z axis: "
-    Write (*,*) total3
+    Write (*,*) totalz
 
     Write (*,*) "Total time: "
-    Write (*,*) total1 + total2 + total3
+    Write (*,*) finish - start
     
     do k = 1, Nx
         do j = 1, Nx
             do i = 1, Nx
-                real_solution(findex(i, j, k, Nx)) = xsin(i)*xsin(j)*xsin(k)*sin(1.d0)
+                real_solution(findex(i, j, k, Nx)) = xsin(i)*xsin(j)*xsin(k)*sin_1
             end do
         end do
     end do
