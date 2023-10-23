@@ -98,6 +98,8 @@ void x_direction(double dt, double dx2, int x){
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);  
 
+    MPI_Status *status;
+
     auto start = std::chrono::high_resolution_clock::now();
 
     //boundary conditions
@@ -119,7 +121,7 @@ void x_direction(double dt, double dx2, int x){
             //riceve
             if (mpi_rank != 0)
             {
-                MPI_Recv(&delta_solution[i][j][inizio - 1], MPI_DOUBLE, mpi_rank - 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(&delta_solution[i][j][inizio - 1], 1, MPI_DOUBLE, mpi_rank - 1, 0, MPI_COMM_WORLD, status);
             }
 
             for (int k = inizio; k < fine; k++){
@@ -131,7 +133,7 @@ void x_direction(double dt, double dx2, int x){
             //manda
             if (mpi_rank != mpi_size - 1)
             {
-                MPI_Send(&delta_solution[i][j][fine - 1], MPI_DOUBLE, mpi_rank + 1, 0, MPI_COMM_WORLD);
+                MPI_Send(&delta_solution[i][j][fine - 1], 1, MPI_DOUBLE, mpi_rank + 1, 0, MPI_COMM_WORLD);
             }
 
         }
@@ -146,18 +148,18 @@ void x_direction(double dt, double dx2, int x){
 
             if (mpi_rank != mpi_size - 1)
             {
-                MPI_Recv(&delta_solution[i][j][fine], MPI_DOUBLE, mpi_rank + 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(&delta_solution[i][j][fine], 1, MPI_DOUBLE, mpi_rank + 1, 0, MPI_COMM_WORLD, status);
             }
      
 
-            for (int k = /*N-2*/ fine - 1; k >= inzio; k--){
+            for (int k = /*N-2*/ fine - 1; k >= inizio; k--){
                 if (k == N-1) continue;
                 delta_solution[i][j][k] = (delta_solution[i][j][k] - exdiag * delta_solution[i][j][k + 1]) / diag[k];
             }   
 
             if (mpi_rank != 0)
             {
-                MPI_Send(&delta_solution[i][j][inizio], MPI_DOUBLE, mpi_rank - 1, 0, MPI_COMM_WORLD);
+                MPI_Send(&delta_solution[i][j][inizio], 1, MPI_DOUBLE, mpi_rank - 1, 0, MPI_COMM_WORLD);
             } 
         }
     }
