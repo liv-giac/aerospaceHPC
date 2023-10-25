@@ -10,8 +10,8 @@
 //----------------------------------VARIABLES----------------------------------//
 #define X  1.0
 #define T  1.0
-#define N  10
-#define nt 10
+#define N  5
+#define nt 1
 
 std::array<double, N * N * N> delta_solution;
 std::array<double, N * N * N> solution;
@@ -138,35 +138,31 @@ void parallel_x_direction(double dt, double dx2, int x){
             MPI_Send(&starts[i], 1, MPI_INT, i, 0, MPI_COMM_WORLD);
             MPI_Send(&ends[i], 1, MPI_INT, i, 1, MPI_COMM_WORLD);
         }
-
     } else {
         MPI_Recv(&start, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Recv(&end, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
 
     std::vector<double> local_sol((end - start) * N * N);
-    std::vector<double> local_diag(end - start);
-
-    for (int i = 0; i < end - start; i++)
-        local_diag[i] = diag[i + start];
 
     MPI_Scatterv(global_sol.data(), counts.data(), displs.data(), MPI_DOUBLE, local_sol.data(), ((end - start) * N * N), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    double prev;
+    int batch;
 
-    if (rank == 0) start++;
+    double prev;
 
     for (int i = 0; i < N; i++){
         for (int j = 0; j < N; j++){
 
+            batch = i * N + j;
+
             if (rank != 0)
                 MPI_Recv(&prev, 1, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            else
-                prev = local_sol[i * N + j];
 
-            for (int k = 0; k < end - start; k++){
-                local_sol[k * N * N + i * N + j] -= exdiag / local_diag[k] * prev;
-                prev = local_sol[k * N * N + i * N + j];
+            for (int k = start; k < end; k++){
+                if (k != 0)
+                    local_sol[(k - start) * N * N + batch] -= exdiag / diag[k - 1] * prev;
+                prev = local_sol[(k - start) * N * N + batch];
             }
 
             if (rank != size - 1)
@@ -174,33 +170,30 @@ void parallel_x_direction(double dt, double dx2, int x){
         }
     }
 
-    if (rank == 0) start--;
-
     double next;
-
-    if (rank == size - 1) end--;
 
     for (int i = 0; i < N; i++){
         for (int j = 0; j < N; j++){
 
+            batch = i * N + j;
+
             if (rank != size - 1)
                 MPI_Recv(&next, 1, MPI_DOUBLE, rank + 1, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             else
-                next = local_sol[(end - start - 1) * N * N + i * N + j] / local_diag[end - start - 1];
+                local_sol[(end - start - 1) * N * N + batch] = local_sol[(end - start - 1) * N * N + batch] / diag[N - 1];
 
-            for (int k = end - start - 1; k >= 0; k--)
-                local_sol[k * N * N + i * N + j] = (local_sol[k * N * N + i * N + j] - exdiag * next) / local_diag[k];
+            for (int k = end - 1; k >= start; k--){
+                if (k != N - 1)
+                    local_sol[(k - start) * N * N + batch] = (local_sol[(k - start) * N * N + batch] - exdiag * next) / diag[k];
+                next = local_sol[(k - start) * N * N + batch];
+            }
 
             if (rank != 0)
                 MPI_Send(&next, 1, MPI_DOUBLE, rank - 1, 1, MPI_COMM_WORLD);
         }
     }
 
-    if (rank == size + 1) end++;
-
-    MPI_Gatherv(local_sol.data(), ((end - start) * N * N), MPI_DOUBLE, global_sol.data(), counts.data(), starts.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Gatherv(local_sol.data(), ((end - start) * N * N), MPI_DOUBLE, global_sol.data(), counts.data(), displs.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     if (rank == 0)
         for (int k = 0; k < N; k++)
@@ -385,7 +378,10 @@ int main(int argc, char** argv){
 
         //---------------------------X DIRECTION-------------------------------//
 
-        parallel_x_direction(dt, dx2, x);
+        if (size == 1)
+            x_direction(dt, dx2, x);
+        else
+            parallel_x_direction(dt, dx2, x);
 
         //---------------------------Y DIRECTION-------------------------------//
         if (rank == 0)
