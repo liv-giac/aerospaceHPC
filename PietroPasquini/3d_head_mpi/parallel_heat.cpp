@@ -168,7 +168,7 @@ void ParallelHeat::message_passing()
     }
     else if (mpi_rank >= mpi_side_size * (mpi_side_size - 1)) // top row (tag 1) // Send and recieve bottom
     {
-        MPI_Sendrecv(&u, 1, horizontal_slice_type, mpi_rank - mpi_side_size, 1,
+        MPI_Sendrecv(u, 1, horizontal_slice_type, mpi_rank - mpi_side_size, 1,
                      lower, N * local_size, MPI_DOUBLE, mpi_rank - mpi_side_size, 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // Fill other vectors with exact values
@@ -236,7 +236,7 @@ void ParallelHeat::message_passing()
     }
     else if (mpi_rank % mpi_side_size == mpi_side_size - 1) // right column (tag 3) // Send and recieve right
     {
-        MPI_Sendrecv(&u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
+        MPI_Sendrecv(u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
                      left, N * local_size, MPI_DOUBLE, mpi_rank - 1, 2,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // Fill other vectors with exact values
