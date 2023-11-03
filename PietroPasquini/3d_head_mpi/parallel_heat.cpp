@@ -85,29 +85,29 @@ void ParallelHeat::build_rhs()
                 rhs[index(i, j, k)] = dt * (force(x, y, z, time + 0.5 * dt) -
                                             (1.0 / dx2) * 6.0 * u[index(i, j, k)]);
                 if (k > 0)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i, j, k - 1)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j, k - 1)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * left[index(j, k, 0)];
-                if (k < N - 1)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i, j, k + 1)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * left[index(j, k, 0)];
+                if (k < local_size - 1)
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j, k + 1)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * right[index(j, k, 0)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * right[index(j, k, 0)];
                 if (j > 0)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i, j - 1, k)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j - 1, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * lower[index(i, k, 0)];
-                if (j < N - 1)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i, j + 1, k)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * lower[index(i, k, 0)];
+                if (j < local_size - 1)
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j + 1, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * upper[index(i, k, 0)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * upper[index(i, k, 0)];
                 if (x > dx)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i - 1, j, k)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i - 1, j, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * exact(x, y, 0.0, time);
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(x, y, 0.0, time);
                 if (x < 1.0 - dx)
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * u[index(i + 1, j, k)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i + 1, j, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1 / dx2 * exact(x, y, 1.0, time);
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(x, y, 1.0, time);
             }
             x = 0.0;
         }
@@ -141,7 +141,6 @@ void ParallelHeat::message_passing()
         if (mpi_rank == 0) // bottom left corner
         {
             x = y_block_start_idx * dx;
-
             for (unsigned int i = 0; i < N; i++)
             {
                 for (unsigned int j = 0; j < local_size; j++)
@@ -211,7 +210,7 @@ void ParallelHeat::message_passing()
     }
     else // center rows (tag 0 and 1)
     {
-        MPI_Sendrecv(&u, 1, horizontal_slice_type, mpi_rank - mpi_side_size, 1,
+        MPI_Sendrecv(u, 1, horizontal_slice_type, mpi_rank - mpi_side_size, 1,
                      lower, N * local_size, MPI_DOUBLE, mpi_rank - mpi_side_size, 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Sendrecv(&u[index(0, local_size - 1, 0)], 1, horizontal_slice_type, mpi_rank + mpi_side_size, 0,
@@ -261,7 +260,7 @@ void ParallelHeat::message_passing()
                 right[index(i, j, 0)] = u[index(i, j, z_block_start_idx + local_size - 1)];
             }
         }
-        MPI_Sendrecv(&u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
+        MPI_Sendrecv(u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
                      left, N * local_size, MPI_DOUBLE, mpi_rank - 1, 2,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         MPI_Sendrecv(&u[index(0, 0, local_size - 1)], N * local_size, MPI_DOUBLE, mpi_rank + 1, 2,
@@ -269,12 +268,58 @@ void ParallelHeat::message_passing()
     }
 }
 
-void ParallelHeat::bcs()
+void ParallelHeat::bcs_x()
 {
     double y = y_block_start_idx * dx;
     double z = z_block_start_idx * dx;
 
     // Boundary conditions for x
+    for (unsigned int j = 0; j < local_size; j++)
+    {
+        y += dx;
+        for (unsigned int k = 0; k < local_size; k++)
+        {
+            z += dx;
+            rhs[index(0, j, k)] += (exact(0, y, z, time + dt) -
+                                    exact(0, y, z, time)) *
+                                   offDiagCoeff;
+            rhs[index(N - 1, j, k)] += (exact(1.0, y, z, time + dt) -
+                                        exact(1.0, y, z, time)) *
+                                       offDiagCoeff;
+        }
+        z = z_block_start_idx * dx;
+    }
+}
+
+void ParallelHeat::bcs_y()
+{
+    double y = z_block_start_idx * dx;
+    double z = y_block_start_idx * dx;
+
+    // Boundary conditions for y
+    for (unsigned int j = 0; j < local_size; j++)
+    {
+        y += dx;
+        for (unsigned int k = 0; k < local_size; k++)
+        {
+            z += dx;
+            rhs[index(0, j, k)] += (exact(0, y, z, time + dt) -
+                                    exact(0, y, z, time)) *
+                                   offDiagCoeff;
+            rhs[index(N - 1, j, k)] += (exact(1.0, y, z, time + dt) -
+                                        exact(1.0, y, z, time)) *
+                                       offDiagCoeff;
+        }
+        z = y_block_start_idx * dx;
+    }
+}
+
+void ParallelHeat::bcs_z()
+{
+    double y = y_block_start_idx * dx;
+    double z = z_block_start_idx * dx;
+
+    // Boundary conditions for z
     for (unsigned int j = 0; j < local_size; j++)
     {
         y += dx;
@@ -522,6 +567,9 @@ void ParallelHeat::print_error()
     error = std::sqrt(error) / (double)(N * local_size * local_size);
 
     MPI_Reduce(&error, &error_tot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    std::cout << "Error of process " << mpi_rank << " is: " << error << std::endl;
+
 
     if (mpi_rank == 0)
     {
