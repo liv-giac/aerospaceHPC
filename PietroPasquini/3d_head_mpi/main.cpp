@@ -70,7 +70,7 @@ int main(int argc, char **argv)
             std::cout << "Applying boundary conditions..." << std::endl;
 
         // Apply boundary conditions
-        parallel_heat.bcs();
+        parallel_heat.bcs_x();
 
         if (mpi_rank == 0)
             std::cout << "Solving the linear systems..." << std::endl;
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
             std::cout << "Applying boundary conditions..." << std::endl;
 
         // Apply boundary conditions
-        parallel_heat.bcs();
+        parallel_heat.bcs_y();
 
         if (mpi_rank == 0)
             std::cout << "Solving the linear systems..." << std::endl;
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
             std::cout << "Applying boundary conditions..." << std::endl;
 
         // Apply boundary conditions
-        parallel_heat.bcs();
+        parallel_heat.bcs_z();
 
         if (mpi_rank == 0)
             std::cout << "Solving the linear systems..." << std::endl;

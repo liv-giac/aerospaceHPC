@@ -76,7 +76,11 @@ public:
 
     void build_rhs();
 
-    void bcs();
+    void bcs_x();
+
+    void bcs_y();
+
+    void bcs_z();
 
     void thomas();
 
