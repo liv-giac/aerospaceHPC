@@ -56,7 +56,7 @@ void thomas_x(const double exdiag, const int rank, const int size, const int sta
 
     int source, next_process, prev_process;
 
-    diag.resize(local_size_z);
+    diag.resize(local_size_x);
     diag[local_start_x] = 1.0 + dt / dx2;
 
     MPI_Cart_shift(comm2D, direction, 1, &source, &next_process);
@@ -76,13 +76,15 @@ void thomas_x(const double exdiag, const int rank, const int size, const int sta
             for (int k = local_start_x; k <= local_end_x; k++)
             {
                 if (k != local_start_x)
+                {
                     w = exdiag / diag[k - 1];
-                diag[k] = diag[k] - w * exdiag;
-                local_sol[k + j * local_size_x + i * local_size_x * local_size_y] -= w * prev;
+                    diag[k] = diag[k] - w * exdiag;
+                    local_sol[k + j * local_size_x + i * local_size_x * local_size_y] -= w * prev;
+                }
                 prev = local_sol[k + j * local_size_x + i * local_size_x * local_size_y];
             }
 
-            if (coord[direction] != size - 1)
+            if (coord[direction] != dims[direction] - 1)
             {
                 MPI_Send(&prev, 1, MPI_DOUBLE, next_process, 1, comm2D);
                 MPI_Send(&diag[local_end_x], 1, MPI_DOUBLE, next_process, 2, comm2D);
@@ -147,13 +149,15 @@ void thomas_y(const double exdiag, const int rank, const int size, const int sta
             for (int k = local_start_y; k <= local_end_y; k++)
             {
                 if (k != local_start_y)
+                {
                     w = exdiag / diag[k - 1];
-                diag[k] = diag[k] - w * exdiag;
-                local_sol[j + k * local_size_x + i * local_size_x * local_size_y] -= w * prev;
+                    diag[k] = diag[k] - w * exdiag;
+                    local_sol[j + k * local_size_x + i * local_size_x * local_size_y] -= w * prev;
+                }
                 prev = local_sol[j + k * local_size_x + i * local_size_x * local_size_y];
             }
 
-            if (coord[direction] != size - 1)
+            if (coord[direction] != dims[direction] - 1)
             {
                 MPI_Send(&prev, 1, MPI_DOUBLE, next_process, 1, comm2D);
                 MPI_Send(&diag[local_end_y], 1, MPI_DOUBLE, next_process, 2, comm2D);
@@ -199,7 +203,7 @@ void thomas_z(const double exdiag, const int rank, const int size, const int sta
     int source, next_process, prev_process;
 
     diag.resize(local_size_z);
-    diag[local_start_x] = 1.0 + dt / dx2;
+    diag[local_start_z] = 1.0 + dt / dx2;
 
     MPI_Cart_shift(comm2D, direction, 1, &source, &next_process);
     MPI_Cart_shift(comm2D, direction, -1, &source, &prev_process);
@@ -218,13 +222,15 @@ void thomas_z(const double exdiag, const int rank, const int size, const int sta
             for (int k = local_start_z; k <= local_end_z; k++)
             {
                 if (k != local_start_z)
+                {
                     w = exdiag / diag[k - 1];
-                diag[k] = diag[k] - w * exdiag;
-                local_sol[i + j * local_size_x + k * local_size_x * local_size_y] -= w * prev;
+                    diag[k] = diag[k] - w * exdiag;
+                    local_sol[i + j * local_size_x + k * local_size_x * local_size_y] -= w * prev;
+                }
                 prev = local_sol[i + j * local_size_x + k * local_size_x * local_size_y];
             }
 
-            if (coord[direction] != size - 1)
+            if (coord[direction] != dims[direction] - 1)
             {
                 MPI_Send(&prev, 1, MPI_DOUBLE, next_process, 1, comm2D);
                 MPI_Send(&diag[local_end_z], 1, MPI_DOUBLE, next_process, 2, comm2D);
@@ -330,7 +336,6 @@ void parallel_x_direction(const std::vector<int> &counts, const std::vector<int>
             }
     }
 
-
     thomas_x(exdiag, rank, size, start, end, 0);
 }
 
@@ -357,7 +362,6 @@ void parallel_y_direction(const std::vector<int> &counts, const std::vector<int>
                 local_sol[local_pos] -= exdiag * my_sin[coord[2] * N / dims[2] + i - 1] * std::sin(X) * my_sin[coord[0] * N / dims[0] + k - 1] * (my_sin_time[x + 1] - my_sin_time[x]);
             }
     }
-
 
     // solve Thomas algorithm
     // std::cout << "execute thomas" << std::endl;
@@ -411,13 +415,13 @@ double finalize(const int x)
             for (int j = local_start_y; j <= local_end_y; j++)
                 for (int i = local_start_x; i <= local_end_x; i++)
                     error += solution[i + j * local_size_x + k * local_size_x * local_size_y] - my_sin[coord[2] * N / dims[2] + k - 1] * my_sin[coord[1] * N / dims[1] + j - 1] * my_sin[coord[0] * N / dims[0] + i - 1] * my_sin_time[x + 1];
-        
+
         // for (int k = local_start_z; k <= local_end_z; k++)
         //     for (int j = local_start_y; j <= local_end_y; j++)
         //         for (int i = local_start_x; i <= local_end_x; i++)
         //             if(solution[i + j * local_size_x + k * local_size_x * local_size_y] != solution[i + j * local_size_x + k * local_size_x * local_size_y])
         //                 std::cout << "Solution is NaN" << std::endl;
-        
+
         // std::cout << "Error: " << error << std::endl;
         return error;
     }
@@ -498,7 +502,6 @@ int main(int argc, char **argv)
     if (coord[2] == dims[2] - 1)
         local_end_z = local_size_z - 2;
 
-
     for (int i = 1; i <= N; i++)
         my_sin[i - 1] = std::sin(i * dx);
 
@@ -518,9 +521,7 @@ int main(int argc, char **argv)
     for (int x = 0; x < nt; x++)
     {
 
-
         //-------------------------------RHS-----------------------------------//
-
 
         //  Bcast solution - not optimal but it works
         // std::cout << "RHS" << std::endl;
@@ -532,8 +533,8 @@ int main(int argc, char **argv)
         // std::cout << "Thomas on x direction" << std::endl;
 
         parallel_x_direction(counts, displs, start_x, end_x, dt, dx2, x);
-        if(x == 0)
-            for(int i = 0; i < local_size_x * local_size_y * local_size_z; i++)
+        if (x == 0)
+            for (int i = 0; i < local_size_x * local_size_y * local_size_z; i++)
                 std::cout << local_sol[i] << std::endl;
         MPI_Barrier(comm2D);
 
@@ -549,7 +550,7 @@ int main(int argc, char **argv)
         // std::cout << "Thomas on z direction" << std::endl;
 
         parallel_z_direction(counts, displs, start_z, end_z, dt, dx2, x); // TO DO
-        MPI_Barrier(comm2D);            
+        MPI_Barrier(comm2D);
 
         //----------------------------FINALIZE---------------------------------//
 
@@ -558,7 +559,6 @@ int main(int argc, char **argv)
 
         // if(solution[1] != solution[1])
         //     std::cout << "Solution is NaN" << std::endl;
-
     }
 
     double error_tot;
