@@ -117,6 +117,33 @@ void ParallelHeat::build_rhs()
 
 void ParallelHeat::message_passing()
 {
+    // If there is only one process, fill vectors with exact values
+    if (mpi_side_size == 1)
+    {
+        double x = z_block_start_idx * dx;
+        for (unsigned int j = 0; j < local_size; j++)
+        {
+            for (unsigned int i = 0; i < N; i++)
+            {
+                x += dx;
+                lower[index(i, j, 0)] = exact((double)(i + 1) * dx, 0.0, x, time);
+                upper[index(i, j, 0)] = exact((double)(i + 1) * dx, 1.0, x, time);
+            }
+            x = z_block_start_idx * dx;
+        }
+        x = y_block_start_idx * dx;
+        for (unsigned int i = 0; i < N; i++)
+        {
+            for (unsigned int j = 0; j < local_size; j++)
+            {
+                x += dx;
+                left[index(i, j, 0)] = exact((double)(i + 1) * dx, x, 0.0, time);
+                right[index(i, j, 0)] = exact((double)(i + 1) * dx, x, 1.0, time);
+            }
+            x = y_block_start_idx * dx;
+        }
+        return;
+    }
     double x = z_block_start_idx * dx;
     // Create MPI_Datatype for horizontal slice
     MPI_Datatype horizontal_slice_type;
@@ -280,10 +307,10 @@ void ParallelHeat::bcs_x()
         for (unsigned int k = 0; k < local_size; k++)
         {
             z += dx;
-            rhs[index(0, j, k)] += (exact(0, y, z, time + dt) -
-                                    exact(0, y, z, time)) *
+            rhs[index(0, j, k)] -= (exact(0.0, y, z, time + dt) -
+                                    exact(0.0, y, z, time)) *
                                    offDiagCoeff;
-            rhs[index(N - 1, j, k)] += (exact(1.0, y, z, time + dt) -
+            rhs[index(N - 1, j, k)] -= (exact(1.0, y, z, time + dt) -
                                         exact(1.0, y, z, time)) *
                                        offDiagCoeff;
         }
@@ -303,10 +330,10 @@ void ParallelHeat::bcs_y()
         for (unsigned int k = 0; k < local_size; k++)
         {
             z += dx;
-            rhs[index(0, j, k)] += (exact(0, y, z, time + dt) -
-                                    exact(0, y, z, time)) *
+            rhs[index(0, j, k)] -= (exact(0.0, y, z, time + dt) -
+                                    exact(0.0, y, z, time)) *
                                    offDiagCoeff;
-            rhs[index(N - 1, j, k)] += (exact(1.0, y, z, time + dt) -
+            rhs[index(N - 1, j, k)] -= (exact(1.0, y, z, time + dt) -
                                         exact(1.0, y, z, time)) *
                                        offDiagCoeff;
         }
@@ -326,10 +353,10 @@ void ParallelHeat::bcs_z()
         for (unsigned int k = 0; k < local_size; k++)
         {
             z += dx;
-            rhs[index(0, j, k)] += (exact(0, y, z, time + dt) -
-                                    exact(0, y, z, time)) *
+            rhs[index(0, j, k)] -= (exact(0.0, y, z, time + dt) -
+                                    exact(0.0, y, z, time)) *
                                    offDiagCoeff;
-            rhs[index(N - 1, j, k)] += (exact(1.0, y, z, time + dt) -
+            rhs[index(N - 1, j, k)]-= (exact(1.0, y, z, time + dt) -
                                         exact(1.0, y, z, time)) *
                                        offDiagCoeff;
         }
