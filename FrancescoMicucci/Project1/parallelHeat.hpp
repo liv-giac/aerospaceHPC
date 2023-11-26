@@ -54,7 +54,7 @@ class ParallelHeat
     // Problem specific variables
     const int nx = 100;                 // Number of points in a generic direction
     const int N = nx * nx * nx;         // Total number of points   
-    const int nt = 1;                 // Number of time steps
+    const int nt = 100;                 // Number of time steps
     const double dx = 1.0 / (nx + 1);   // Step size
     const double dt = 1.0 / nt;         // Time step size
 

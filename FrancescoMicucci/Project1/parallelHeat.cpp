@@ -63,16 +63,15 @@ void ParallelHeat::xDirectionSolver(double &time)
     thomasX();
 }
 
-// FIXME: The Thomas algorithm is not working properly
 void ParallelHeat::thomasX()
 {
     int index;                  // Local index of the point
     double prev, next;
-    double diag[localSize[0]];  // b vector in the Wikipedia notation for the Thomas algorithm
+    double diag[nx];            // b vector in the Wikipedia notation for the Thomas algorithm
 
     // Init the b vector in the Wikipedia notation for the Thomas algorithm
     diag[0] = diagElem;
-    for(int i = 1; i < localSize[0]; i++){
+    for(int i = 1; i < nx; i++){
         diag[i] = diagElem - noDiagElem * noDiagElem / diag[i - 1];
     }
 
@@ -178,16 +177,15 @@ void ParallelHeat::yDirectionSolver(double &time)
     thomasY();
 }
 
-// FIXME: The Thomas algorithm is not working properly
 void ParallelHeat::thomasY()
 {
     int index;                  // Local index of the point
     double prev, next;
-    double diag[localSize[1]];  // b vector in the Wikipedia notation for the Thomas algorithm
+    double diag[nx];            // b vector in the Wikipedia notation for the Thomas algorithm
 
     // Init the b vector in the Wikipedia notation for the Thomas algorithm
     diag[0] = diagElem;
-    for(int i = 1; i < localSize[1]; i++){
+    for(int i = 1; i < nx; i++){
         diag[i] = diagElem - noDiagElem * noDiagElem / diag[i - 1];
     }
 
@@ -293,16 +291,15 @@ void ParallelHeat::zDirectionSolver(double &time)
     thomasZ();
 }
 
-// FIXME: The Thomas algorithm is not working properly
 void ParallelHeat::thomasZ()
 {
     int index;                  // Local index of the point
     double prev, next;
-    double diag[localSize[2]];  // b vector in the Wikipedia notation for the Thomas algorithm
+    double diag[nx];            // b vector in the Wikipedia notation for the Thomas algorithm
 
     // Init the b vector in the Wikipedia notation for the Thomas algorithm
     diag[0] = diagElem;
-    for(int i = 1; i < localSize[2]; i++){
+    for(int i = 1; i < nx; i++){
         diag[i] = diagElem - noDiagElem * noDiagElem / diag[i - 1];
     }
 
