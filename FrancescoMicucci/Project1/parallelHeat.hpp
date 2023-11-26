@@ -35,6 +35,12 @@ class ParallelHeat
         std::fill_n(localSol, localSize[0] * localSize[1] * localSize[2], 0.0);
     }
 
+    ~ParallelHeat()
+    {
+        delete[] timeStepSolution;
+        delete[] localSol;
+    }
+
     // Solve the heat equation in 3D.
     void solve();
 
