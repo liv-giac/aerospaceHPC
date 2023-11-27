@@ -1,4 +1,5 @@
 #include <cmath>
+#include <chrono>
 #include <iostream>
 #include <mpi.h>
 #include "parallelHeat.hpp"
@@ -11,6 +12,8 @@ int main(int argc, char *argv[])
     int periods[ndims] = {0, 0, 0};     // Array specifying whether the grid is periodic in each dimension
     int coord[ndims];                   // Array specifying the Cartesian coordinates of the process
     int nx = 100;                       // Number of points in a generic direction
+
+    auto startTime = std::chrono::high_resolution_clock::now();
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD,&size);    // Get the number of processes
@@ -55,5 +58,11 @@ int main(int argc, char *argv[])
     heat.solve();
 
     MPI_Finalize();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = endTime - startTime;
+
+    if (rank == 0) 
+        std::cout << "Time: " << elapsed.count() << " milliseconds " << std::endl;
     return 0;
 }
