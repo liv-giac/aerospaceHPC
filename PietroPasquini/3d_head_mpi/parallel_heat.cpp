@@ -87,11 +87,11 @@ void ParallelHeat::build_rhs()
                 if (k > 0)
                     rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j, k - 1)];
                 else
-                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * left[index(j, k, 0)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * left[index(i, j, 0)];
                 if (k < local_size - 1)
                     rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j, k + 1)];
                 else
-                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * right[index(j, k, 0)];
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * right[index(i, j, 0)];
                 if (j > 0)
                     rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i, j - 1, k)];
                 else
@@ -103,11 +103,11 @@ void ParallelHeat::build_rhs()
                 if (x > dx)
                     rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i - 1, j, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(x, y, 0.0, time);
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(0.0, y, z, time);
                 if (x < 1.0 - dx)
                     rhs[index(i, j, k)] += dt * 1.0 / dx2 * u[index(i + 1, j, k)];
                 else
-                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(x, y, 1.0, time);
+                    rhs[index(i, j, k)] += dt * 1.0 / dx2 * exact(1.0, y, z, time);
             }
             x = 0.0;
         }
@@ -151,13 +151,13 @@ void ParallelHeat::message_passing()
     MPI_Type_commit(&horizontal_slice_type);
     // Send and recieve top
     if (mpi_rank < mpi_side_size) // bottom row (tag 0)
-    {
+    {   
         MPI_Sendrecv(&u[index(0, local_size - 1, 0)], 1, horizontal_slice_type, mpi_rank + mpi_side_size, 0,
                      upper, N * local_size, MPI_DOUBLE, mpi_rank + mpi_side_size, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         // Fill other vectors with exact values
         x = z_block_start_idx * dx;
         for (unsigned int j = 0; j < local_size; j++)
-        {
+        {   
             for (unsigned int i = 0; i < N; i++)
             {
                 x += dx;
@@ -260,7 +260,7 @@ void ParallelHeat::message_passing()
             x = y_block_start_idx * dx;
         }
     }
-    else if (mpi_rank % mpi_side_size == mpi_side_size - 1) // right column (tag 3) // Send and recieve right
+    else if (mpi_rank % mpi_side_size == mpi_side_size - 1) // right column (tag 3) 
     {
         MPI_Sendrecv(u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
                      left, N * local_size, MPI_DOUBLE, mpi_rank - 1, 2,
@@ -279,14 +279,6 @@ void ParallelHeat::message_passing()
     }
     else // center columns
     {
-        for (unsigned int j = 0; j < local_size; j++)
-        {
-            for (unsigned int i = 0; i < N; i++)
-            {
-                left[index(i, j, 0)] = u[index(i, j, z_block_start_idx)];
-                right[index(i, j, 0)] = u[index(i, j, z_block_start_idx + local_size - 1)];
-            }
-        }
         MPI_Sendrecv(u, N * local_size, MPI_DOUBLE, mpi_rank - 1, 3,
                      left, N * local_size, MPI_DOUBLE, mpi_rank - 1, 2,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -445,7 +437,6 @@ void ParallelHeat::change_direction_x_to_y()
     int row = mpi_rank / mpi_side_size;
     for (unsigned int pos = 0; pos < mpi_side_size; pos++)
     {
-
         for (unsigned int k = 0; k < local_size; k++)
         {
             for (unsigned int j = 0; j < local_size; j++)
@@ -458,8 +449,8 @@ void ParallelHeat::change_direction_x_to_y()
         }
         if (mpi_rank != column + pos * mpi_side_size) //  not owned blocks
         {
-            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, 4,
-                                 column + pos * mpi_side_size, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, column,
+                                 column + pos * mpi_side_size, column, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
         rotate_block_x_to_y(buffer);
         for (unsigned int k = 0; k < local_size; k++)
@@ -496,8 +487,8 @@ void ParallelHeat::change_direction_y_to_z()
         }
         if (mpi_rank != column + pos * mpi_side_size) //  not owned blocks
         {
-            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, 4,
-                                 column + pos * mpi_side_size, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, column,
+                                 column + pos * mpi_side_size, column, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
         rotate_block_y_to_z(buffer);
         for (unsigned int k = 0; k < local_size; k++)
@@ -535,8 +526,8 @@ void ParallelHeat::change_direction_z_to_x()
         }
         if (mpi_rank != column + pos * mpi_side_size) //  not owned blocks
         {
-            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, 4,
-                                 column + pos * mpi_side_size, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Sendrecv_replace(buffer, local_size * local_size * local_size, MPI_DOUBLE, column + pos * mpi_side_size, column,
+                                 column + pos * mpi_side_size, column, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         }
         rotate_block_z_to_x(buffer);
         for (unsigned int k = 0; k < local_size; k++)
