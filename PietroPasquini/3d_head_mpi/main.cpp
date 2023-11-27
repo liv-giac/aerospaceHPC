@@ -33,14 +33,12 @@ int main(int argc, char **argv)
         std::cout << "Running with " << mpi_size << " processes." << std::endl;
     }
 
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     // Initialize the parallel heat equation solver
     ParallelHeat parallel_heat(mpi_rank, mpi_size);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
     parallel_heat.initialize_u();
-
-    MPI_Barrier(MPI_COMM_WORLD);
 
     for (unsigned int t = 1; t <= parallel_heat.TSteps; t++)
     {
@@ -57,8 +55,6 @@ int main(int argc, char **argv)
 
         // Prepare auxiliary vectors
         parallel_heat.message_passing();
-
-        MPI_Barrier(MPI_COMM_WORLD);
 
         if (mpi_rank == 0)
             std::cout << "Building rhs..." << std::endl;
@@ -132,8 +128,6 @@ int main(int argc, char **argv)
         // Sum the right-hand side to the solution
         parallel_heat.sum_rhs_to_u();
 
-        MPI_Barrier(MPI_COMM_WORLD);
-
         if (mpi_rank == 0)
             std::cout << "========================================================" << std::endl;
     }
@@ -147,6 +141,14 @@ int main(int argc, char **argv)
     parallel_heat.print_error();
 
     MPI_Finalize();
+    auto end_time = std::chrono::high_resolution_clock::now();
+
+    if (mpi_rank == 0)
+    {
+        std::cout << "========================================================" << std::endl;
+        std::cout << "Time per element per time step: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1.0E11 << " s" << std::endl;
+        std::cout << "========================================================" << std::endl;
+    }
 
     return EXIT_SUCCESS;
 }
