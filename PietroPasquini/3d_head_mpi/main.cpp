@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     if (mpi_rank == 0)
     {
         std::cout << "========================================================" << std::endl;
-        std::cout << "Time per element per time step: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1.0E11 << " s" << std::endl;
+        std::cout << "Time total: " << std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0     << " s" << std::endl;
         std::cout << "========================================================" << std::endl;
     }
 

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cmath>
-#include <mpi.h>
+#include </usr/lib/x86_64-linux-gnu/openmpi/include/mpi.h>
 
 class ParallelHeat
 {
