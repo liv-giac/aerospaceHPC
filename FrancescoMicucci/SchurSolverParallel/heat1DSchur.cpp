@@ -26,7 +26,8 @@ void SchurSolver::setup()
     matrixUpperDiag = new double[local_n]; // Allocate memory for matrixUpperDiag
     matrixLowerDiag = new double[local_n]; // Allocate memory for matrixLowerDiag
 
-    localRhs = new double[local_n]; // Allocate memory for localRhs
+    localRhs = new double[local_n];                            // Allocate memory for localRhs
+    localSchurRhsIntermediateProducts = new double[numDecomp]; // There are (numProcessors - 1) elements of the Schur rhs
 
     extractRhsInterface(); // Extract rhsInterface from rhs
 
@@ -97,73 +98,94 @@ void SchurSolver::computeSchurComplement()
 
 void SchurSolver::updateRhsInterface()
 {
-    double *subrhs = new double[dimSubmatrix];        // Rhs elements associated with the Matrix Ai
-    double *y = new double[dimSubmatrix];             // Solution of the linear system: Ai * y = subrhs
-    double *diag = new double[dimSubmatrix];          // Main diagonal of the Matrix Ai
-    double *upperDiag = new double[dimSubmatrix - 1]; // 1st upper diagonal of the Matrix Ai
-    double *lowerDiag = new double[dimSubmatrix - 1]; // 1st lower diagonal of the Matrix Ai
+    /*
+        Every processor will fill its parts of localSchurRhsIntermediateProducts; then we will reduce them and subtract the interface rhs to obtain the Schur rhs.
+    */
+    // Store the local intermediate products
+    double *intermediateProducts = new double[dimSubmatrix]; // Rhs elements associated with the Matrix Ai
+    // double *y = new double[dimSubmatrix];             // Solution of the linear system: Ai * y = subrhs
+    // double *diag = new double[dimSubmatrix];          // Main diagonal of the Matrix Ai
+    // double *upperDiag = new double[dimSubmatrix - 1]; // 1st upper diagonal of the Matrix Ai
+    // double *lowerDiag = new double[dimSubmatrix - 1]; // 1st lower diagonal of the Matrix Ai
 
-    // Init diag, upperDiag, lowerDiag, subrhs of Matrix A0
-    std::fill_n(diag, dimSubmatrix, diagElem);
-    std::fill_n(upperDiag, dimSubmatrix - 1, upperElem);
-    std::fill_n(lowerDiag, dimSubmatrix - 1, lowerElem);
-    extractRhsAj(subrhs, 0);
-
-    // Solve A0 * y = subrhs
-    thomasAlgorithm(y, diag, upperDiag, lowerDiag, subrhs, dimSubmatrix);
-
-    // Store the intermediate result (A^-1 f), we will use it later to compute the solution
-    for (int j = 0; j < dimSubmatrix; j++)
-        yStorage[j] = y[j];
-
-    // Update rhsInterface
-    rhsInterface[0] -= lowerElem * y[dimSubmatrix - 1];
-
-    for (int i = 1; i < numDecomp - 1; i++)
+    if (rank == 0)
     {
-        // Init diag, upperDiag, lowerDiag, subrhs of Matrix Ai
-        std::fill_n(diag, dimSubmatrix, diagElem);
+        /*
+            The first processor only needs to fill the first value
+        */
+        /*std::fill_n(diag, dimSubmatrix, diagElem);
         std::fill_n(upperDiag, dimSubmatrix - 1, upperElem);
-        std::fill_n(lowerDiag, dimSubmatrix - 1, lowerElem);
-        extractRhsAj(subrhs, i);
+        std::fill_n(lowerDiag, dimSubmatrix - 1, lowerElem);*/
+        extractRhsAj(subrhs, 0);
 
-        // Solve Ai * y = subrhs
-        thomasAlgorithm(y, diag, upperDiag, lowerDiag, subrhs, dimSubmatrix);
-
-        // Store y
-        for (int j = 0; j < dimSubmatrix; j++)
-            yStorage[i * dimSubmatrix + j] = y[j];
+        // Solve A0 * yStorage = subrhs
+        // Store the intermediate result (A^-1 f), we will use it later to compute the solution
+        thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, intermediateProducts, dimSubmatrix);
 
         // Update rhsInterface
-        rhsInterface[i - 1] -= upperElem * y[0];
-        rhsInterface[i] -= lowerElem * y[dimSubmatrix - 1];
-    }
+        // rhsSchur = rhsInterface - sum(E0 * (A0^-1 * D0))
 
-    subrhs = new double[dimLatestSubmatrix];
+        // rhsSchur = rhsInterface - E0 * (A0^-1 * D0)
+        /*
+            lateralElements_D[A_PLUS] = lowerElem;
+            lateralElements_D[C_MINUS] = upperElem;
+            bottomElements_E[C_PLUS] = upperElem;
+            bottomElements_E[A_MINUS] = lowerElem;
+        */
+        rhsInterface[0] -= bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
+    }
+    if (rank == size - 1)
+    {
+        /*
+            The first processor only needs to fill the last value
+        */
+        /*subrhs = new double[dimLatestSubmatrix];
     y = new double[dimLatestSubmatrix];
     diag = new double[dimLatestSubmatrix];
     upperDiag = new double[dimLatestSubmatrix - 1];
-    lowerDiag = new double[dimLatestSubmatrix - 1];
+    lowerDiag = new double[dimLatestSubmatrix - 1];*/
 
-    // Init diag, upperDiag, lowerDiag, subrhs of Matrix An-1
-    std::fill_n(diag, dimLatestSubmatrix, diagElem);
-    std::fill_n(upperDiag, dimLatestSubmatrix - 1, upperElem);
-    std::fill_n(lowerDiag, dimLatestSubmatrix - 1, lowerElem);
-    extractRhsAj(subrhs, numDecomp - 1);
+        // Init diag, upperDiag, lowerDiag, subrhs of Matrix An-1
+        /*std::fill_n(diag, dimLatestSubmatrix, diagElem);
+        std::fill_n(upperDiag, dimLatestSubmatrix - 1, upperElem);
+        std::fill_n(lowerDiag, dimLatestSubmatrix - 1, lowerElem);
+        extractRhsAj(subrhs, numDecomp - 1);*/
+        // Solve An-1 * y = subrhs
+        thomasAlgorithm(y, diag, upperDiag, lowerDiag, subrhs, dimLatestSubmatrix);
 
-    // Solve An-1 * y = subrhs
-    thomasAlgorithm(y, diag, upperDiag, lowerDiag, subrhs, dimLatestSubmatrix);
+        // Store y
+        for (int j = 0; j < dimLatestSubmatrix; j++)
+            yStorage[(numDecomp - 1) * dimSubmatrix + j] = y[j];
 
-    // Store y
-    for (int j = 0; j < dimLatestSubmatrix; j++)
-        yStorage[(numDecomp - 1) * dimSubmatrix + j] = y[j];
+        // Update rhsInterface
+        rhsInterface[numDecomp - 2] -= upperElem * y[0];
+    }
+    else
+    {
 
-    // Update rhsInterface
-    rhsInterface[numDecomp - 2] -= upperElem * y[0];
+        for (int i = 1; i < numDecomp - 1; i++)
+        {
+            // Init diag, upperDiag, lowerDiag, subrhs of Matrix Ai
+            std::fill_n(diag, dimSubmatrix, diagElem);
+            std::fill_n(upperDiag, dimSubmatrix - 1, upperElem);
+            std::fill_n(lowerDiag, dimSubmatrix - 1, lowerElem);
+            extractRhsAj(subrhs, i);
+
+            // Solve Ai * y = subrhs
+            thomasAlgorithm(y, diag, upperDiag, lowerDiag, subrhs, dimSubmatrix);
+
+            // Store y
+            for (int j = 0; j < dimSubmatrix; j++)
+                yStorage[i * dimSubmatrix + j] = y[j];
+
+            // Update rhsInterface
+            rhsInterface[i - 1] -= upperElem * y[0];
+            rhsInterface[i] -= lowerElem * y[dimSubmatrix - 1];
+        }
+    }
 
     // Free memory
     delete[] subrhs;
-    delete[] y;
     delete[] diag;
     delete[] upperDiag;
     delete[] lowerDiag;
@@ -211,9 +233,29 @@ void SchurSolver::computeError()
     error = error / n;
 }
 
-void SchurSolver::thomasAlgorithm(double *solution, double *diag,
+[[deprecated]]
+void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
                                   double *upperDiag, double *lowerDiag,
-                                  double *rhs, int dim)
+                                  _INOUT double *rhs, int dim)
+{
+    double w;
+
+    for (int i = 1; i < dim; i++)
+    {
+        w = lowerDiag[i - 1] / diag[i - 1];
+        diag[i] -= w * upperDiag[i - 1];
+        rhs[i] -= w * rhs[i - 1];
+    }
+    solution[dim - 1] = rhs[dim - 1] / diag[dim - 1];
+    for (int i = dim - 2; i >= 0; i--)
+    {
+        solution[i] = (rhs[i] - upperDiag[i] * solution[i + 1]) / diag[i];
+    }
+}
+
+void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
+                                  double *upperDiag, double *lowerDiag,
+                                  _INOUT double *rhs, int dim)
 {
     double w;
 

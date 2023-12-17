@@ -8,6 +8,7 @@
 #define C_MINUS 1
 
 #define _OUT
+#define _INOUT
 
 #include <cmath>
 #include <iostream>
@@ -48,6 +49,8 @@ public:
         delete[] matrixDiag;
         delete[] matrixUpperDiag;
         delete[] matrixLowerDiag;
+        delete[] localRhs;
+        delete[] localSchurRhsIntermediateProducts;
     }
 
     // Solve the heat equation in 1D.
@@ -69,12 +72,13 @@ protected:
     int size;
     MPI_Comm comm;
 
-    double *matrixDiag;          // Diagonal elements of the initial matrix
-    double *matrixUpperDiag;     // Upper diagonal elements of the initial matrix
-    double *matrixLowerDiag;     // Lower diagonal elements of the initial matrix
-    double *localRhs;            // Local rhs of the problem
-    double lateralElements_D[2]; // First element is a+ and the second is c-
-    double bottomElements_E[2];  // First element is c+ and the second is a-
+    double *matrixDiag;                        // Diagonal elements of the initial matrix
+    double *matrixUpperDiag;                   // Upper diagonal elements of the initial matrix
+    double *matrixLowerDiag;                   // Lower diagonal elements of the initial matrix
+    double *localRhs;                          // Local rhs of the problem
+    double lateralElements_D[2];               // First element is a+ and the second is c-
+    double bottomElements_E[2];                // First element is c+ and the second is a-
+    double *localSchurRhsIntermediateProducts; // Intermediate products of the local Schur rhs
 
     double diagElem;        // Value of the diagonal elements of the initial matrix
     double upperElem;       // Value of the elements of the 1st upper diagonal of the initial matrix
@@ -104,7 +108,10 @@ protected:
     // Compute the elements componing the Schur complement
     void computeSchurComplement();
 
-    // Update rhsInterface in such a way to take into account the Schur Complement computation
+    /**
+     * @brief Build the rhs of the Schur complement system. Each processor fills ::localSchurRhsIntermediateProducts
+     *
+     */
     void updateRhsInterface();
 
     // Compute the solution of the heat equation in 1D.
@@ -125,9 +132,13 @@ protected:
     // Implementation of the Thomas Algorithm.
     // Used to solve a linear system of the form: A * solution = rhs
     // where A is a tridiagonal matrix.
-    void thomasAlgorithm(double *solution, double *diag,
-                         double *upperDiag, double *lowerDiag,
-                         double *rhs, int dim);
+    [[deprecated]] void thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
+                                        double *upperDiag, double *lowerDiag,
+                                        _INOUT double *rhs, int dim);
+
+    void thomasAlgorithm(_OUT double *solution, const double *const diag,
+                         const double *const upperDiag, const double *const lowerDiag,
+                         const double *const rhs, const int &dim) const;
 
     // Modified version of the Thomas algorithm used for solving simultaneously
     // 2 different linear systems having the same matrix A and rhs as follow:
