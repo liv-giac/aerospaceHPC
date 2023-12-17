@@ -10,6 +10,9 @@
 #define _OUT
 #define _INOUT
 
+#define _MPI_LOCAL
+#define _MPI_GLOBAL
+
 #include <cmath>
 #include <iostream>
 #include <mpi.h>
@@ -50,7 +53,7 @@ public:
         delete[] matrixUpperDiag;
         delete[] matrixLowerDiag;
         delete[] localRhs;
-        delete[] localSchurRhsIntermediateProducts;
+        delete[] schurRhs;
     }
 
     // Solve the heat equation in 1D.
@@ -68,29 +71,32 @@ protected:
     const double *rhs;           // Rhs of the problem
     const double *exactSolution; // Exact solution of the problem
 
+    // MPI rank
     int rank;
+    // MPI size
     int size;
+    // MPI communicator
     MPI_Comm comm;
 
-    double *matrixDiag;                        // Diagonal elements of the initial matrix
-    double *matrixUpperDiag;                   // Upper diagonal elements of the initial matrix
-    double *matrixLowerDiag;                   // Lower diagonal elements of the initial matrix
-    double *localRhs;                          // Local rhs of the problem
-    double lateralElements_D[2];               // First element is a+ and the second is c-
-    double bottomElements_E[2];                // First element is c+ and the second is a-
-    double *localSchurRhsIntermediateProducts; // Intermediate products of the local Schur rhs
+    _MPI_LOCAL double *matrixDiag;          // Diagonal elements of the initial matrix
+    _MPI_LOCAL double *matrixUpperDiag;     // Upper diagonal elements of the initial matrix
+    _MPI_LOCAL double *matrixLowerDiag;     // Lower diagonal elements of the initial matrix
+    _MPI_LOCAL double *localRhs;            // Local rhs of the problem
+    _MPI_LOCAL double lateralElements_D[2]; // First element is a+ and the second is c-
+    _MPI_LOCAL double bottomElements_E[2];  // First element is c+ and the second is a-
+    _MPI_GLOBAL double *schurRhs;           // Schur rhs; shared by all processors.
 
-    double diagElem;        // Value of the diagonal elements of the initial matrix
-    double upperElem;       // Value of the elements of the 1st upper diagonal of the initial matrix
-    double lowerElem;       // Value of the elements of the 1st lower diagonal of the initial matrix
-    double error;           // Error of the computed solution
-    double *solution;       // Solution of the problem
-    double *rhsInterface;   // Rhs elements associated with the matrix S
-    double *diagS;          // Schur complement main diagonal
-    double *upperDiagS;     // Schur complement 1st upper diagonal
-    double *lowerDiagS;     // Schur complement 1st lower diagonal
-    int dimSubmatrix;       // Dim of the first n-1 submatrices A0, A1, ..., An-2
-    int dimLatestSubmatrix; // Dim of the latest submatrix An-1
+    double diagElem;                  // Value of the diagonal elements of the initial matrix
+    double upperElem;                 // Value of the elements of the 1st upper diagonal of the initial matrix
+    double lowerElem;                 // Value of the elements of the 1st lower diagonal of the initial matrix
+    double error;                     // Error of the computed solution
+    double *solution;                 // Solution of the problem
+    _MPI_GLOBAL double *rhsInterface; // Rhs elements associated with the matrix S. These are GLOBAL
+    _MPI_GLOBAL double *diagS;        // Schur complement main diagonal
+    _MPI_GLOBAL double *upperDiagS;   // Schur complement 1st upper diagonal
+    _MPI_GLOBAL double *lowerDiagS;   // Schur complement 1st lower diagonal
+    int dimSubmatrix;                 // Dim of the first n-1 submatrices A0, A1, ..., An-2
+    int dimLatestSubmatrix;           // Dim of the latest submatrix An-1
 
     double *xi; // xi corresponds to the column i-1 of (Ai^(-1)*Di)
     double *yi; // yi corresponds to the column i of (Ai^(-1)*Di)
@@ -109,7 +115,7 @@ protected:
     void computeSchurComplement();
 
     /**
-     * @brief Build the rhs of the Schur complement system. Each processor fills ::localSchurRhsIntermediateProducts
+     * @brief Build the rhs of the Schur complement system. In the end, each processor will own a copy of schurRhs.
      *
      */
     void updateRhsInterface();
