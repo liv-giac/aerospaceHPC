@@ -37,7 +37,7 @@ public:
         MPI_Comm_size(comm, &size);
 
         // print size and rank
-        std::cout << "Rank: " << rank << " size: " << size;
+        std::cout << "Rank: " << rank << " size: " << size << std::endl;
 
         error = 0.0;
         dimSubmatrix = (n - numDecomp + 1) / numDecomp;

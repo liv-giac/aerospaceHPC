@@ -20,12 +20,12 @@ void initialize(double rhs[], double exactSolution[], const int &n, const double
 int main(int argc, char *argv[])
 {
 #ifndef NDEBUG
-        feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+    feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
     MPI_Init(&argc, &argv);
 
-    const int n = 27;                      // Number of points
-    //const int numDecomp = 4;               // Number of decomposition of the system
+    const int n = 27; // Number of points
+    // const int numDecomp = 4;               // Number of decomposition of the system
     double dx = 1.0 / (n + 1);             // Step size
     double *rhs = new double[n];           // Rhs of the problem
     double *exactSolution = new double[n]; // Exact solution of the problem
@@ -46,11 +46,18 @@ int main(int argc, char *argv[])
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time = end - start;
 
-    std::cout << "============================================" << std::endl;
-    std::cout << "Error with " << n << " points: " << solver.getError() << std::endl;
-    std::cout << "Time: " << time.count() * 1000 << " milliseconds " << std::endl;
-    std::cout << "Seconds per point: " << time.count() / n << std::endl;
-    std::cout << "============================================" << std::endl;
+    // Get rank
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    if (rank == 0)
+    {
+        std::cout << "============================================" << std::endl;
+        std::cout << "Error with " << n << " points: " << solver.getError() << std::endl;
+        std::cout << "Time: " << time.count() * 1000 << " milliseconds " << std::endl;
+        std::cout << "Seconds per point: " << time.count() / n << std::endl;
+        std::cout << "============================================" << std::endl;
+    }
 
     MPI_Finalize();
 
