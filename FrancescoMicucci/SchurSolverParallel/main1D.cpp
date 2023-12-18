@@ -4,19 +4,6 @@
 
 #include <fenv.h>
 
-// Initialize rhs and exact solution of the pb.
-void initialize(double rhs[], double exactSolution[], const int &n, const double &dx)
-{
-    // Each process has its own rhs and exact solution
-    for (int i = 0; i < n - 1; i++)
-    {
-        exactSolution[i] = std::sin((i + 1) * dx);
-        rhs[i] = std::sin((i + 1) * dx);
-    }
-    exactSolution[n - 1] = std::sin(n * dx);
-    rhs[n - 1] = std::sin(1.0) / (dx * dx) + std::sin(n * dx);
-}
-
 // Main function
 int main(int argc, char *argv[])
 {
@@ -25,7 +12,7 @@ int main(int argc, char *argv[])
 #endif
     MPI_Init(&argc, &argv);
 
-    const int n = 27; // Number of points
+    const int n = 6400; // Number of points
     // const int numDecomp = 4;               // Number of decomposition of the system
     double dx = 1.0 / (n + 1);             // Step size
     double *rhs = new double[n];           // Rhs of the problem
@@ -36,20 +23,19 @@ int main(int argc, char *argv[])
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Get MPI rank
+    // Get MPI size
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    initialize(rhs, exactSolution, n, dx);
-    SchurSolver solver(MPI_COMM_WORLD, n, size, dx, rhs, exactSolution, diagElem, upperElem, lowerElem);
+    // Get MPI rank
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    SchurSolver solver(MPI_COMM_WORLD, n, size, dx, diagElem, upperElem, lowerElem);
     solver.solve();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> time = end - start;
-
-    // Get rank
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0)
     {

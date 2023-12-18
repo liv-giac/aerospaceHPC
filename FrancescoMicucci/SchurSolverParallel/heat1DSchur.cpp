@@ -19,6 +19,8 @@ void SchurSolver::setup()
     upperDiagS = new double[schurSize - 1]; // Allocate memory for upperDiagS
     lowerDiagS = new double[schurSize - 1]; // Allocate memory for lowerDiagS
 
+    exactSolution = new double[local_n]; // Allocate memory for exactSolution
+
     xi = new double[dimSubmatrix];       // Allocate memory for xi
     yi = new double[dimSubmatrix];       // Allocate memory for yi
     xm = new double[dimLatestSubmatrix]; // Allocate memory for xm
@@ -32,6 +34,8 @@ void SchurSolver::setup()
     schurRhs = new double[numDecomp]; // There are (numProcessors - 1) elements of the Schur rhs
 
     extractRhsInterface(); // Extract rhsInterface from rhs
+
+    buildExactSolution();
 
     buildMatrix();
     buildRhs();
@@ -264,19 +268,31 @@ void SchurSolver::computeSolution()
     double *xInt = new double[schurSize]; // Solution of the linear system S * xInt = rhsInterface
 
     // Solve S * xInt = rhsInterface
-    thomasAlgorithm(xInt, diagS, upperDiagS, lowerDiagS, rhsInterface, schurSize);
+    thomasAlgorithm(xInt, diagS, upperDiagS, lowerDiagS, schurRhs, schurSize);
 
-    // Compute the solution for all the points
-    for (unsigned int j = 0; j < schurSize; j++)
-        solution[(j + 1) * dimSubmatrix + j] = xInt[j];
+    // Copy the right value of xInt to solutionInterfaceValues
+    if (rank == 0)
+    {
+        solutionInterfaceValues[0] = 0.0;
+        solutionInterfaceValues[1] = xInt[0];
+    }
+    else if (rank == size - 1)
+    {
+        solutionInterfaceValues[0] = xInt[schurSize - 1];
+        solutionInterfaceValues[1] = 0.0;
+    }
+    else
+    {
+        solutionInterfaceValues[0] = xInt[rank - 1];
+        solutionInterfaceValues[1] = xInt[rank];
+    }
 
     for (unsigned int j = 0; j < dimSubmatrix; j++)
     {
-        solution[j] = yStorage[j];
-        solution[j] -= yi[j] * xInt[0];
+        solution[j] = yStorage[j] - xi[j] * solutionInterfaceValues[0] - yi[j] * solutionInterfaceValues[1];
     }
 
-    for (unsigned int i = 1; i < schurSize; i++)
+    /*for (unsigned int i = 1; i < schurSize; i++)
     {
         for (unsigned int j = 0; j < dimSubmatrix; j++)
         {
@@ -289,7 +305,7 @@ void SchurSolver::computeSolution()
     {
         solution[(schurSize) * (dimSubmatrix + 1) + j] = yStorage[(schurSize)*dimSubmatrix + j];
         solution[(schurSize) * (dimSubmatrix + 1) + j] -= xm[j] * xInt[numDecomp - 2];
-    }
+    }*/
 
 #ifndef NDEBUG
     // Print the solution for each processor within a loop with mpi barrier
@@ -298,7 +314,7 @@ void SchurSolver::computeSolution()
         if (rank == i)
         {
             std::cout << "Solution for processor " << rank << std::endl;
-            for (unsigned int j = 0; j < n; j++)
+            for (unsigned int j = 0; j < dimSubmatrix; j++)
             {
                 std::cout << solution[j] << " ";
             }
@@ -315,11 +331,27 @@ void SchurSolver::computeSolution()
 
 void SchurSolver::computeError()
 {
+    error = 0.0;
     // Each processor computes its own error
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < local_n; i++)
         error += (solution[i] - exactSolution[i]) * (solution[i] - exactSolution[i]);
-    error = std::sqrt(error);
-    error = error / n;
+    // Get error at interface
+
+    if (rank != size - 1)
+    {
+        error += (solutionInterfaceValues[1] - exactSolutionInterface[1]) * (solutionInterfaceValues[1] - exactSolutionInterface[1]);
+    }
+
+    if (rank == 0)
+        MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    else
+        MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+    if (rank == 0)
+    {
+        error = std::sqrt(error);
+        error = error / n;
+    }
 }
 
 /*[[deprecated]] void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
@@ -383,7 +415,7 @@ void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const dia
         if (rank == i)
         {
             std::cout << "Thomas solution for processor " << rank << std::endl;
-            for (unsigned int j = 0; j < dimSubmatrix; j++)
+            for (unsigned int j = 0; j < dim; j++)
             {
                 std::cout << solution[j] << " ";
             }
@@ -432,7 +464,7 @@ void SchurSolver::extractRhsInterface()
 
     for (unsigned int i = 1; i < numDecomp; i++)
     {
-        rhsInterface[i - 1] = rhs[i * (stride + 1) - 1];
+        rhsInterface[i - 1] = std::sin((i * (stride + 1)) * dx);
     }
 
 #ifndef NDEBUG
@@ -469,11 +501,44 @@ void SchurSolver::extractRhsAj(double rhsAi[], unsigned int j)
 void SchurSolver::buildRhs()
 {
     // Global part of the rhs: forcing term
+    /*
+        rhs[i] = std::sin((i + 1) * dx);
+        rhs[n - 1] = std::sin(1.0) / (dx * dx) + std::sin(n * dx);
+    */
 
     for (unsigned int i = 0; i < local_n; ++i)
     {
         const unsigned int global_index = rank * (local_n + 1) + i;
-        localRhs[i] = rhs[global_index];
+        localRhs[i] = std::sin((global_index + 1) * dx);
+    }
+
+    if (rank == size - 1)
+    {
+        localRhs[local_n - 1] += std::sin(1.0) / (dx * dx);
+    }
+}
+
+void SchurSolver::buildExactSolution()
+{
+    for (unsigned int i = 0; i < local_n; i++)
+    {
+        const unsigned int global_index = rank * (local_n + 1) + i;
+        exactSolution[i] = std::sin((global_index + 1) * dx);
+    }
+    // build solution at rhs
+    unsigned int global_index_first = rank * (local_n + 1) - 1;
+    unsigned int global_index_last = rank * (local_n + 1) + local_n;
+
+    exactSolutionInterface[0] = 0.0;
+    exactSolutionInterface[1] = 0.0;
+
+    if (rank != 0)
+    {
+        exactSolutionInterface[0] = std::sin((global_index_first + 1) * dx);
+    }
+    if (rank != size - 1)
+    {
+        exactSolutionInterface[1] = std::sin((global_index_last + 1) * dx);
     }
 }
 
