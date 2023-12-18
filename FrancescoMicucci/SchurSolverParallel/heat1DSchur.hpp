@@ -28,7 +28,7 @@ public:
                 const double &dx_, const double *rhs_,
                 const double *exactSolution_, double diagElem_,
                 double upperElem_, double lowerElem_)
-        : comm(comm_), n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), rhs(rhs_), exactSolution(exactSolution_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
+        : n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), rhs(rhs_), exactSolution(exactSolution_), comm(comm_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
     {
         // get MPI ID
         MPI_Comm_rank(comm, &rank);
@@ -65,8 +65,8 @@ public:
 protected:
     const int n; // Number of points
     // TODO initialise
-    const int local_n;            // Number of local points EXCLUDING the interface points
-    const int numDecomp;          // Number of decomposition of the system
+    const unsigned int local_n;            // Number of local points EXCLUDING the interface points
+    const unsigned int numDecomp;          // Number of decomposition of the system
     const unsigned int schurSize; // Size of the Schur complement
     const double dx;              // Step size
     const double *rhs;            // Rhs of the problem
@@ -96,8 +96,8 @@ protected:
     _MPI_GLOBAL double *diagS;        // Schur complement main diagonal
     _MPI_GLOBAL double *upperDiagS;   // Schur complement 1st upper diagonal
     _MPI_GLOBAL double *lowerDiagS;   // Schur complement 1st lower diagonal
-    int dimSubmatrix;                 // Dim of the first n-1 submatrices A0, A1, ..., An-2
-    int dimLatestSubmatrix;           // Dim of the latest submatrix An-1
+    unsigned int dimSubmatrix;                 // Dim of the first n-1 submatrices A0, A1, ..., An-2
+    unsigned int dimLatestSubmatrix;           // Dim of the latest submatrix An-1
 
     double *xi; // xi corresponds to the column i-1 of (Ai^(-1)*Di)
     double *yi; // yi corresponds to the column i of (Ai^(-1)*Di)
@@ -139,9 +139,9 @@ protected:
     // Implementation of the Thomas Algorithm.
     // Used to solve a linear system of the form: A * solution = rhs
     // where A is a tridiagonal matrix.
-    [[deprecated]] void thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
+    /*[[deprecated]] void thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
                                         double *upperDiag, double *lowerDiag,
-                                        _INOUT double *rhs, int dim);
+                                        _INOUT double *rhs, int dim);*/
 
     void thomasAlgorithm(_OUT double *solution, const double *const diag,
                          const double *const upperDiag, const double *const lowerDiag,
@@ -168,7 +168,7 @@ protected:
     void extractRhsInterface();
 
     // Extract the rhs elements associated with the matrix Ai from the rhs of the problem.
-    void extractRhsAj(double rhsAi[], int j);
+    void extractRhsAj(double rhsAi[], unsigned int j);
 };
 
 #endif

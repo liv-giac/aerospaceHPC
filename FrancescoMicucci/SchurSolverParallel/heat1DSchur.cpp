@@ -67,7 +67,7 @@ void SchurSolver::computeSchurComplement()
 
     // First processor only has the last value that is non-zero
     diagS[0] -= s_buffer[3];
-    for (int i = 1; i < schurSize; i++)
+    for (unsigned int i = 1; i < schurSize; i++)
     {
         diagS[i - 1] -= s_buffer[i * 4];
         upperDiagS[i - 1] -= s_buffer[i * 4 + 1];
@@ -80,9 +80,9 @@ void SchurSolver::computeSchurComplement()
     if (rank == 0)
     {
         std::cout << "Schur's complement matrix:" << std::endl;
-        for (int i = 0; i < schurSize; i++)
+        for (unsigned int i = 0; i < schurSize; i++)
         {
-            for (int j = 0; j < schurSize; j++)
+            for (unsigned int j = 0; j < schurSize; j++)
             {
                 if (i == j)
                     std::cout << diagS[i] << " ";
@@ -202,7 +202,7 @@ void SchurSolver::updateSchurRhs()
     schurRhs[schurSize - 1] = -(intermediateProductsBuffer[(schurSize - 1) * 2 + 1] + intermediateProductsBuffer[(schurSize - 1) * 2 + 2]);
 
     // Final step: compute rhsInterface - E0 * (A0^-1 * D0)
-    for (int i = 0; i < schurSize; i++)
+    for (unsigned int i = 0; i < schurSize; i++)
     {
         schurRhs[i] += rhsInterface[i];
     }
@@ -214,7 +214,7 @@ void SchurSolver::updateSchurRhs()
     if (rank == 0)
     {
         std::cout << "Schur's rhs:" << std::endl;
-        for (int i = 0; i < schurSize; i++)
+        for (unsigned int i = 0; i < schurSize; i++)
         {
             std::cout << schurRhs[i] << " ";
         }
@@ -230,23 +230,23 @@ void SchurSolver::computeSolution()
     thomasAlgorithm(xInt, diagS, upperDiagS, lowerDiagS, rhsInterface, schurSize);
 
     // Compute the solution for all the points
-    for (int j = 0; j < schurSize; j++)
+    for (unsigned int j = 0; j < schurSize; j++)
         solution[(j + 1) * dimSubmatrix + j] = xInt[j];
-    for (int j = 0; j < dimSubmatrix; j++)
+    for (unsigned int j = 0; j < dimSubmatrix; j++)
     {
         solution[j] = yStorage[j];
         solution[j] -= yi[j] * xInt[0];
     }
-    for (int i = 1; i < schurSize; i++)
+    for (unsigned int i = 1; i < schurSize; i++)
     {
-        for (int j = 0; j < dimSubmatrix; j++)
+        for (unsigned int j = 0; j < dimSubmatrix; j++)
         {
             solution[i * (dimSubmatrix + 1) + j] = yStorage[i * dimSubmatrix + j];
             solution[i * (dimSubmatrix + 1) + j] -= xi[j] * xInt[i - 1];
             solution[i * (dimSubmatrix + 1) + j] -= yi[j] * xInt[i];
         }
     }
-    for (int j = 0; j < dimLatestSubmatrix; j++)
+    for (unsigned int j = 0; j < dimLatestSubmatrix; j++)
     {
         solution[(schurSize) * (dimSubmatrix + 1) + j] = yStorage[(schurSize) * dimSubmatrix + j];
         solution[(schurSize) * (dimSubmatrix + 1) + j] -= xm[j] * xInt[numDecomp - 2];
@@ -264,7 +264,7 @@ void SchurSolver::computeError()
     error = error / n;
 }
 
-[[deprecated]] void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
+/*[[deprecated]] void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
                                                  double *upperDiag, double *lowerDiag,
                                                  _INOUT double *rhs, int dim)
 {
@@ -281,7 +281,7 @@ void SchurSolver::computeError()
     {
         solution[i] = (rhs[i] - upperDiag[i] * solution[i + 1]) / diag[i];
     }
-}
+}*/
 
 void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const diag,
                                   const double *const upperDiag, const double *const lowerDiag,
@@ -292,8 +292,8 @@ void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const dia
     double *rhsCopy = new double[dim];
 
     // Copy diag and rhs
-    std::memcpy(diagCopy, diag, dim);
-    std::memcpy(rhsCopy, rhs, dim);
+    std::memcpy(diagCopy, diag, dim * sizeof(double));
+    std::memcpy(rhsCopy, rhs, dim * sizeof(double));
 
     for (int i = 1; i < dim; i++)
     {
@@ -343,19 +343,19 @@ void SchurSolver::extractRhsInterface()
 {
     int stride = (n - numDecomp + 1) / numDecomp;
 
-    for (int i = 1; i < numDecomp; i++)
+    for (unsigned int i = 1; i < numDecomp; i++)
     {
         rhsInterface[i - 1] = rhs[i * (stride + 1) - 1];
     }
 }
 
-void SchurSolver::extractRhsAj(double rhsAi[], int j)
+void SchurSolver::extractRhsAj(double rhsAi[], unsigned int j)
 {
-    int stride = (n - numDecomp + 1) / numDecomp, lenghtRhsAi = stride;
+    unsigned int stride = (n - numDecomp + 1) / numDecomp, lenghtRhsAi = stride;
     if (j == numDecomp - 1)
         lenghtRhsAi = n - numDecomp + 1 - ((numDecomp - 1) * stride);
 
-    for (int i = 0; i < lenghtRhsAi; i++)
+    for (unsigned int i = 0; i < lenghtRhsAi; i++)
     {
         rhsAi[i] = rhs[i + j * (stride + 1)];
     }
