@@ -4,28 +4,26 @@ PROGRAM jimdouglas
    USE decomp_2d_constants
    USE mpi
 
-
-
    IMPLICIT NONE
-   INTEGER, PARAMETER :: nx = 200
+   INTEGER, PARAMETER :: nx = 100
    INTEGER, PARAMETER :: nt = 100
    INTEGER,DIMENSION(2) :: coords_proc
-   REAL(mytype), PARAMETER :: T = 1.0 ! time domain
-   REAL(mytype), PARAMETER :: X = 1.0 ! space domain
-   REAL(mytype) :: d_x , dt, timestep = 0 ! intervals and current timestep
-   REAL(mytype) :: mat_coeff, dt_dx2 ! matrix A coefficient
-   REAL(mytype) :: error,start, finish
-   REAL(mytype) :: w = 0 ! real coefficient for thomas algorithm
+   REAL(KIND = 8), PARAMETER :: T = 1.0 ! time domain
+   REAL(KIND = 8), PARAMETER :: X = 1.0 ! space domain
+   REAL(KIND = 8) :: d_x , dt, timestep = 0 ! intervals and current timestep
+   REAL(KIND = 8) :: mat_coeff, dt_dx2 ! matrix A coefficient
+   REAL(KIND = 8) :: error,start, finish
+   REAL(KIND = 8) :: w = 0 ! real coefficient for thomas algorithm
    !	 a - sub-diagonal (means it is the diagonal below the main diagonal)
    !	 b - the main diagonal
    !	 c - sup-diagonal (means it is the diagonal above the main diagonal)
    !	 d - right part -> RHS
    !	 x - the answer
    !	 n - number of equations
-   REAL(mytype),DIMENSION(:), ALLOCATABLE :: a,b,c
-   REAL(mytype),DIMENSION(:,:,:), ALLOCATABLE :: dx,dy,dz,told,real_solution
-   REAL(mytype),DIMENSION(:,:), ALLOCATABLE :: toldn, tolde, toldw, tolds, btoldew,btoldns
-   !REAL(mytype),DIMENSION(:), ALLOCATABLE :: f
+   REAL(KIND = 8),DIMENSION(:), ALLOCATABLE :: a,b,c
+   REAL(KIND = 8),DIMENSION(:,:,:), ALLOCATABLE :: dx,dy,dz,told,real_solution
+   REAL(KIND = 8),DIMENSION(:,:), ALLOCATABLE :: toldn, tolde, toldw, tolds, btoldew,btoldns
+   !REAL(KIND = 8),DIMENSION(:), ALLOCATABLE :: f
 
    INTEGER process_Rank, size_Of_Cluster, ierror
    INTEGER :: i,j,k,dim,P_row,P_col, dest_proc_ew, source_proc_ew, dest_proc_ns, source_proc_ns
@@ -54,11 +52,7 @@ PROGRAM jimdouglas
 
 
    !  WRITE (*,*) process_Rank, coords_proc, source_proc_ew, dest_proc_ew, source_proc_ns, dest_proc_ns
-   IF (mytype==4) THEN
-      RTYPE = MPI_REAL
-    ELSE
-      RTYPE = MPI_DOUBLE_PRECISION
-    END IF  
+   RTYPE = MPI_REAL8
 
    d_x = X / ( 1 + nx)
    dt = T / nt
@@ -256,6 +250,9 @@ PROGRAM jimdouglas
       CALL MPI_REDUCE(error, error, 1, RTYPE, MPI_SUM, 0, MPI_COMM_WORLD, ierror)
    END IF
 
+
+
+
    CALL decomp_2d_finalize()
    CALL MPI_FINALIZE(ierror)
 
@@ -263,8 +260,8 @@ CONTAINS
 
    SUBROUTINE threed_thomas_z(a,b,c,d)
       IMPLICIT NONE
-      REAL(mytype),DIMENSION(:) :: a,b,c
-      REAL(mytype),DIMENSION(zstart(1):zend(1),zstart(2):zend(2),zstart(3):zend(3)) :: d
+      REAL(KIND = 8),DIMENSION(:) :: a,b,c
+      REAL(KIND = 8),DIMENSION(zstart(1):zend(1),zstart(2):zend(2),zstart(3):zend(3)) :: d
 
       !Boundary conditions on z
       d(:,:,nx) = d(:,:,nx) + mat_coeff * real_solution(zstart(1):zend(1),zstart(2):zend(2),nx+1)*(sin(timestep+dt) - sin(timestep))
@@ -285,8 +282,8 @@ CONTAINS
 
    SUBROUTINE threed_thomas_y(a,b,c,d)
       IMPLICIT NONE
-      REAL(mytype),DIMENSION(:) :: a,b,c
-      REAL(mytype),DIMENSION(ystart(1):yend(1),ystart(2):yend(2),ystart(3):yend(3)) :: d
+      REAL(KIND = 8),DIMENSION(:) :: a,b,c
+      REAL(KIND = 8),DIMENSION(ystart(1):yend(1),ystart(2):yend(2),ystart(3):yend(3)) :: d
 
       DO j = ystart(3),yend(3)
 
@@ -309,8 +306,8 @@ CONTAINS
 
    SUBROUTINE threed_thomas_x(a,b,c,d)
       IMPLICIT NONE
-      REAL(mytype),DIMENSION(:) :: a,b,c
-      REAL(mytype),DIMENSION(xstart(1):xend(1),xstart(2):xend(2),xstart(3):xend(3)) :: d
+      REAL(KIND = 8),DIMENSION(:) :: a,b,c
+      REAL(KIND = 8),DIMENSION(xstart(1):xend(1),xstart(2):xend(2),xstart(3):xend(3)) :: d
       INTEGER :: i, j
 
       DO i = xstart(3),xend(3)
@@ -337,7 +334,7 @@ CONTAINS
    FUNCTION exact_sol(i,j,k) RESULT (exact_s)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i,j,k
-      REAL(mytype) :: exact_s
+      REAL(KIND = 8) :: exact_s
       exact_s = sin(i*d_x) * sin(j*d_x) * sin(k*d_x)
 
    END FUNCTION exact_sol
@@ -345,7 +342,7 @@ CONTAINS
    DOUBLEPRECISION FUNCTION forcing_term(i,j,k,t)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: i,j,k
-      REAL(mytype), INTENT(IN) :: t
+      REAL(KIND = 8), INTENT(IN) :: t
 
       forcing_term = (cos(t) + 3*sin(t))*sin(i*d_x)*sin(j*d_x)*sin(k*d_x)
 
