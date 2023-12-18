@@ -28,7 +28,7 @@ public:
                 const double &dx_, const double *rhs_,
                 const double *exactSolution_, double diagElem_,
                 double upperElem_, double lowerElem_)
-        : comm(comm_), n(n_), numDecomp(numDecomp_), dx(dx_), rhs(rhs_), exactSolution(exactSolution_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_), local_n((n - numDecomp_ + 1) / numDecomp_)
+        : comm(comm_), n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), rhs(rhs_), exactSolution(exactSolution_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
     {
         // get MPI ID
         MPI_Comm_rank(comm, &rank);
@@ -65,11 +65,12 @@ public:
 protected:
     const int n; // Number of points
     // TODO initialise
-    const int local_n;           // Number of local points EXCLUDING the interface points
-    const int numDecomp;         // Number of decomposition of the system
-    const double dx;             // Step size
-    const double *rhs;           // Rhs of the problem
-    const double *exactSolution; // Exact solution of the problem
+    const int local_n;            // Number of local points EXCLUDING the interface points
+    const int numDecomp;          // Number of decomposition of the system
+    const unsigned int schurSize; // Size of the Schur complement
+    const double dx;              // Step size
+    const double *rhs;            // Rhs of the problem
+    const double *exactSolution;  // Exact solution of the problem
 
     // MPI rank
     int rank;
@@ -118,7 +119,7 @@ protected:
      * @brief Build the rhs of the Schur complement system. In the end, each processor will own a copy of schurRhs.
      *
      */
-    void updateRhsInterface();
+    void updateSchurRhs();
 
     // Compute the solution of the heat equation in 1D.
     void computeSolution();

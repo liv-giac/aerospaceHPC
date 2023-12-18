@@ -33,6 +33,7 @@ void SchurSolver::setup()
 
     buildMatrix();
     buildRhs();
+    extractRhsInterface();
     buildLateralElements();
     computeSchurComplement();
 }
@@ -96,7 +97,7 @@ void SchurSolver::computeSchurComplement()
     }
 }
 
-void SchurSolver::updateRhsInterface()
+void SchurSolver::updateSchurRhs()
 {
     /*
         Every processor will perform its calculations; then we will reduce them and subtract the interface rhs to obtain schurRhs.
@@ -160,38 +161,64 @@ void SchurSolver::updateRhsInterface()
         thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
 
         localSchurRhsBuffer[0] = 0.0;
-        localSchurRhsBuffer[numDecomp - 2] = bottomElements_E[C_PLUS] * yStorage[0];
+        localSchurRhsBuffer[1] = bottomElements_E[C_PLUS] * yStorage[0];
     }
     else
     {
-        for (int i = 1; i < numDecomp - 1; i++)
-        {
-            // Solve Ai * y = subrhs
-            thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
+        // Solve Ai * y = subrhs
+        thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
 
-            // Update rhsInterface
-            rhsInterface[0] = bottomElements_E[C_PLUS] * yStorage[0];
-            rhsInterface[1] = bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
-        }
+        // Update rhsInterface
+        localSchurRhsBuffer[0] = bottomElements_E[C_PLUS] * yStorage[0];
+        localSchurRhsBuffer[1] = bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
     }
 
     /*
     AllGather step
 
         At this point each processor has its two values. We need to allGather them into the appropriate positions and then reduce them.
-        We need a buffer that accomodates 2 elements for each processor; the summ will overlap in one element per operation, eg:
-            schurRhs_0   =   b_0 + a_1
-            schurRhs_1   =   b_1 + a_2
-            schurRhs_2   =   b_2 + a_3
+        We need a buffer that accomodates 2 elements for each processor; the sum will overlap in one element per operation, eg:
+            schurRhs_0   =   b_0 + a_1  == buffer[1] + buffer[2]
+            schurRhs_1   =   b_1 + a_2  == buffer[3] + buffer[4]
+            schurRhs_2   =   b_2 + a_3  == buffer[5] + buffer[6]
             ...
 
         where each processor will have
             a_i, b_i as the two elements of the buffer.
         In the end, each processor will own a copy of schurRhs.
-        
-    */
-    double *intermediateProductsBuffer = new double[numDecomp * 2]; // Rhs elements associated with the Matrix Ai
 
+    */
+    double *intermediateProductsBuffer = new double[numDecomp * 2];
+
+    MPI_Allgather(localSchurRhsBuffer, 2, MPI_DOUBLE, intermediateProductsBuffer, 2, MPI_DOUBLE, comm);
+
+    // Reduce step
+    schurRhs[0] = -(intermediateProductsBuffer[1] + intermediateProductsBuffer[2]); // b_0 + a_1
+    for (unsigned int i = 1; i < schurSize - 1; ++1)
+    {
+        schurRhs[i] = -(intermediateProductsBuffer[i * 2 + 1] + intermediateProductsBuffer[i * 2 + 2]);
+    }
+    schurRhs[schurSize - 1] = -(intermediateProductsBuffer[(schurSize - 1) * 2 + 1] + intermediateProductsBuffer[(schurSize - 1) * 2 + 2]);
+
+    // Final step: compute rhsInterface - E0 * (A0^-1 * D0)
+    for (int i = 0; i < numDecomp - 1; i++)
+    {
+        schurRhs[i] += rhsInterface[i];
+    }
+
+    // Free memory
+    delete[] intermediateProductsBuffer;
+
+    // Print the Schur rhs
+    if (rank == 0)
+    {
+        std::cout << "Schur's rhs:" << std::endl;
+        for (int i = 0; i < numDecomp - 1; i++)
+        {
+            std::cout << schurRhs[i] << " ";
+        }
+        std::cout << std::endl;
+    }
 }
 
 void SchurSolver::computeSolution()
@@ -255,23 +282,33 @@ void SchurSolver::computeError()
     }
 }
 
-void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
-                                  double *upperDiag, double *lowerDiag,
-                                  _INOUT double *rhs, int dim)
+void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const diag,
+                                  const double *const upperDiag, const double *const lowerDiag,
+                                  const double *const rhs, const int &dim) const;
 {
     double w;
+    double *diagCopy = new double[dim];
+    double *rhsCopy = new double[dim];
+
+    // Copy diag and rhs
+    std::copy_n(diag, dim, diagCopy);
+    std::copy_n(rhs, dim, rhsCopy);
 
     for (int i = 1; i < dim; i++)
     {
-        w = lowerDiag[i - 1] / diag[i - 1];
-        diag[i] -= w * upperDiag[i - 1];
-        rhs[i] -= w * rhs[i - 1];
+        w = lowerDiag[i - 1] / diagCopy[i - 1];
+        diagCopy[i] -= w * upperDiag[i - 1];
+        rhsCopy[i] -= w * rhsCopy[i - 1];
     }
-    solution[dim - 1] = rhs[dim - 1] / diag[dim - 1];
+    solution[dim - 1] = rhsCopy[dim - 1] / diagCopy[dim - 1];
     for (int i = dim - 2; i >= 0; i--)
     {
-        solution[i] = (rhs[i] - upperDiag[i] * solution[i + 1]) / diag[i];
+        solution[i] = (rhsCopy[i] - upperDiag[i] * solution[i + 1]) / diagCopy[i];
     }
+
+    // Free memory
+    delete[] diagCopy;
+    delete[] rhsCopy;
 }
 
 void SchurSolver::schurSubsystemsSolver(_OUT double x[], _OUT double y[],
