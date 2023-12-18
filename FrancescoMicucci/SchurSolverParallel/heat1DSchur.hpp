@@ -145,7 +145,7 @@ protected:
 
     void thomasAlgorithm(_OUT double *solution, const double *const diag,
                          const double *const upperDiag, const double *const lowerDiag,
-                         const double *const rhs, const int &dim) const;
+                         const double *const rhs, const unsigned int &dim) const;
 
     // Modified version of the Thomas algorithm used for solving simultaneously
     // 2 different linear systems having the same matrix A and rhs as follow:

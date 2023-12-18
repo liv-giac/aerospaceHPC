@@ -7,6 +7,7 @@
 // Initialize rhs and exact solution of the pb.
 void initialize(double rhs[], double exactSolution[], const int &n, const double &dx)
 {
+    // Each process has its own rhs and exact solution
     for (int i = 0; i < n - 1; i++)
     {
         exactSolution[i] = std::sin((i + 1) * dx);
