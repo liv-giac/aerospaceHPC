@@ -1,6 +1,7 @@
 #include "heat1DSchur.hpp"
 
 #include <cstring>
+#include <cassert>
 
 void SchurSolver::solve()
 {
@@ -11,12 +12,14 @@ void SchurSolver::solve()
 
 void SchurSolver::setup()
 {
-    rhsInterface = new double[schurSize]; // Allocate memory for rhsInterface
-    solution = new double[n];                 // Allocate memory for solution
-    yStorage = new double[n - numDecomp + 1]; // Allocate memory for yStorage
-    diagS = new double[schurSize];        // Allocate memory for diagS
-    upperDiagS = new double[schurSize - 1];   // Allocate memory for upperDiagS
-    lowerDiagS = new double[schurSize - 1];   // Allocate memory for lowerDiagS
+    rhsInterface = new double[schurSize];   // Allocate memory for rhsInterface
+    solution = new double[dimSubmatrix];    // Allocate memory for solution
+    yStorage = new double[n - schurSize];   // Allocate memory for yStorage
+    diagS = new double[schurSize];          // Allocate memory for diagS
+    upperDiagS = new double[schurSize - 1]; // Allocate memory for upperDiagS
+    lowerDiagS = new double[schurSize - 1]; // Allocate memory for lowerDiagS
+
+    exactSolution = new double[local_n]; // Allocate memory for exactSolution
 
     xi = new double[dimSubmatrix];       // Allocate memory for xi
     yi = new double[dimSubmatrix];       // Allocate memory for yi
@@ -32,9 +35,10 @@ void SchurSolver::setup()
 
     extractRhsInterface(); // Extract rhsInterface from rhs
 
+    buildExactSolution();
+
     buildMatrix();
     buildRhs();
-    extractRhsInterface();
     buildLateralElements();
     computeSchurComplement();
 }
@@ -130,6 +134,26 @@ void SchurSolver::updateSchurRhs()
     */
     double localSchurRhsBuffer[2];
 
+    thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
+
+    // each processor prints its own localRhs within a loop with mpi barrier
+#ifndef NDEBUG
+    for (unsigned int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            std::cout << "localRhs for processor " << rank << std::endl;
+            for (unsigned int j = 0; j < dimSubmatrix; j++)
+            {
+                std::cout << localRhs[j] << " ";
+            }
+            std::cout << std::endl
+                      << std::endl;
+        }
+        MPI_Barrier(comm);
+    }
+#endif
+
     if (rank == 0)
     {
         /*
@@ -143,15 +167,14 @@ void SchurSolver::updateSchurRhs()
         /*  Solve A0 * yStorage = subrhs
             Store the intermediate result (A^-1 f), we will use it later to compute the solution
         */
-        thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
 
         // Update rhsInterface
         // rhsSchur = rhsInterface - sum(E0 * (A0^-1 * D0))
         // rhsSchur = rhsInterface - E0 * (A0^-1 * D0)
 
         // Final step: compute E0 * (A0^-1 * D0)
-        localSchurRhsBuffer[0] = bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
-        localSchurRhsBuffer[1] = 0.0;
+        localSchurRhsBuffer[0] = 0.0;
+        localSchurRhsBuffer[1] = bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
     }
     if (rank == size - 1)
     {
@@ -159,20 +182,36 @@ void SchurSolver::updateSchurRhs()
             The first processor only needs to fill the last value
         */
         // Solve An-1 * y = subrhs
-        thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
 
-        localSchurRhsBuffer[0] = 0.0;
-        localSchurRhsBuffer[1] = bottomElements_E[C_PLUS] * yStorage[0];
+        localSchurRhsBuffer[0] = bottomElements_E[C_PLUS] * yStorage[0];
+        localSchurRhsBuffer[1] = 0.0;
     }
     else
     {
         // Solve Ai * y = subrhs
-        thomasAlgorithm(yStorage, matrixDiag, matrixUpperDiag, matrixLowerDiag, localRhs, dimSubmatrix);
 
         // Update rhsInterface
         localSchurRhsBuffer[0] = bottomElements_E[C_PLUS] * yStorage[0];
         localSchurRhsBuffer[1] = bottomElements_E[A_MINUS] * yStorage[dimSubmatrix - 1];
     }
+
+// Print yStorage for each processor within a loop with mpi barrier
+#ifndef NDEBUG
+    for (unsigned int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            std::cout << "yStorage for processor " << rank << std::endl;
+            for (unsigned int j = 0; j < dimSubmatrix; j++)
+            {
+                std::cout << yStorage[j] << " ";
+            }
+            std::cout << std::endl
+                      << std::endl;
+        }
+        MPI_Barrier(comm);
+    }
+#endif
 
     /*
     AllGather step
@@ -185,7 +224,7 @@ void SchurSolver::updateSchurRhs()
             ...
 
         where each processor will have
-            a_i, b_i as the two elements of the buffer.
+            [a_i, b_i] as the two elements of the buffer.
         In the end, each processor will own a copy of schurRhs.
 
     */
@@ -210,6 +249,7 @@ void SchurSolver::updateSchurRhs()
     // Free memory
     delete[] intermediateProductsBuffer;
 
+#ifndef NDEBUG
     // Print the Schur rhs
     if (rank == 0)
     {
@@ -220,6 +260,7 @@ void SchurSolver::updateSchurRhs()
         }
         std::cout << std::endl;
     }
+#endif
 }
 
 void SchurSolver::computeSolution()
@@ -227,17 +268,31 @@ void SchurSolver::computeSolution()
     double *xInt = new double[schurSize]; // Solution of the linear system S * xInt = rhsInterface
 
     // Solve S * xInt = rhsInterface
-    thomasAlgorithm(xInt, diagS, upperDiagS, lowerDiagS, rhsInterface, schurSize);
+    thomasAlgorithm(xInt, diagS, upperDiagS, lowerDiagS, schurRhs, schurSize);
 
-    // Compute the solution for all the points
-    for (unsigned int j = 0; j < schurSize; j++)
-        solution[(j + 1) * dimSubmatrix + j] = xInt[j];
+    // Copy the right value of xInt to solutionInterfaceValues
+    if (rank == 0)
+    {
+        solutionInterfaceValues[0] = 0.0;
+        solutionInterfaceValues[1] = xInt[0];
+    }
+    else if (rank == size - 1)
+    {
+        solutionInterfaceValues[0] = xInt[schurSize - 1];
+        solutionInterfaceValues[1] = 0.0;
+    }
+    else
+    {
+        solutionInterfaceValues[0] = xInt[rank - 1];
+        solutionInterfaceValues[1] = xInt[rank];
+    }
+
     for (unsigned int j = 0; j < dimSubmatrix; j++)
     {
-        solution[j] = yStorage[j];
-        solution[j] -= yi[j] * xInt[0];
+        solution[j] = yStorage[j] - xi[j] * solutionInterfaceValues[0] - yi[j] * solutionInterfaceValues[1];
     }
-    for (unsigned int i = 1; i < schurSize; i++)
+
+    /*for (unsigned int i = 1; i < schurSize; i++)
     {
         for (unsigned int j = 0; j < dimSubmatrix; j++)
         {
@@ -248,9 +303,27 @@ void SchurSolver::computeSolution()
     }
     for (unsigned int j = 0; j < dimLatestSubmatrix; j++)
     {
-        solution[(schurSize) * (dimSubmatrix + 1) + j] = yStorage[(schurSize) * dimSubmatrix + j];
+        solution[(schurSize) * (dimSubmatrix + 1) + j] = yStorage[(schurSize)*dimSubmatrix + j];
         solution[(schurSize) * (dimSubmatrix + 1) + j] -= xm[j] * xInt[numDecomp - 2];
+    }*/
+
+#ifndef NDEBUG
+    // Print the solution for each processor within a loop with mpi barrier
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            std::cout << "Solution for processor " << rank << std::endl;
+            for (unsigned int j = 0; j < dimSubmatrix; j++)
+            {
+                std::cout << solution[j] << " ";
+            }
+            std::cout << std::endl
+                      << std::endl;
+        }
+        MPI_Barrier(comm);
     }
+#endif
 
     // Free memory
     delete[] xInt;
@@ -258,10 +331,27 @@ void SchurSolver::computeSolution()
 
 void SchurSolver::computeError()
 {
-    for (int i = 0; i < n; i++)
+    error = 0.0;
+    // Each processor computes its own error
+    for (unsigned int i = 0; i < local_n; i++)
         error += (solution[i] - exactSolution[i]) * (solution[i] - exactSolution[i]);
-    error = std::sqrt(error);
-    error = error / n;
+    // Get error at interface
+
+    if (rank != size - 1)
+    {
+        error += (solutionInterfaceValues[1] - exactSolutionInterface[1]) * (solutionInterfaceValues[1] - exactSolutionInterface[1]);
+    }
+
+    if (rank == 0)
+        MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+    else
+        MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+    if (rank == 0)
+    {
+        error = std::sqrt(error);
+        error = error / n;
+    }
 }
 
 /*[[deprecated]] void SchurSolver::thomasAlgorithm(_OUT double *solution, _INOUT double *diag,
@@ -285,7 +375,7 @@ void SchurSolver::computeError()
 
 void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const diag,
                                   const double *const upperDiag, const double *const lowerDiag,
-                                  const double *const rhs, const int &dim) const
+                                  const double *const rhs, const unsigned int &dim) const
 {
     double w;
     double *diagCopy = new double[dim];
@@ -295,17 +385,46 @@ void SchurSolver::thomasAlgorithm(_OUT double *solution, const double *const dia
     std::memcpy(diagCopy, diag, dim * sizeof(double));
     std::memcpy(rhsCopy, rhs, dim * sizeof(double));
 
-    for (int i = 1; i < dim; i++)
+#ifndef NDEBUG
+    // Assert all elements were copied properly
+    for (unsigned int i = 0; i < dim; i++)
+    {
+        assert(diagCopy[i] == diag[i]);
+        assert(rhsCopy[i] == rhs[i]);
+    }
+#endif
+
+    for (unsigned int i = 1; i < dim; i++)
     {
         w = lowerDiag[i - 1] / diagCopy[i - 1];
         diagCopy[i] -= w * upperDiag[i - 1];
         rhsCopy[i] -= w * rhsCopy[i - 1];
     }
+
     solution[dim - 1] = rhsCopy[dim - 1] / diagCopy[dim - 1];
-    for (int i = dim - 2; i >= 0; i--)
+    for (unsigned int i = dim - 2; i >= 1; i--)
     {
         solution[i] = (rhsCopy[i] - upperDiag[i] * solution[i + 1]) / diagCopy[i];
     }
+    solution[0] = (rhsCopy[0] - upperDiag[0] * solution[1]) / diagCopy[0];
+
+#ifndef NDEBUG
+    // Output solution for each processor within a loop with mpi barrier
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            std::cout << "Thomas solution for processor " << rank << std::endl;
+            for (unsigned int j = 0; j < dim; j++)
+            {
+                std::cout << solution[j] << " ";
+            }
+            std::cout << std::endl
+                      << std::endl;
+        }
+        MPI_Barrier(comm);
+    }
+#endif
 
     // Free memory
     delete[] diagCopy;
@@ -345,8 +464,26 @@ void SchurSolver::extractRhsInterface()
 
     for (unsigned int i = 1; i < numDecomp; i++)
     {
-        rhsInterface[i - 1] = rhs[i * (stride + 1) - 1];
+        rhsInterface[i - 1] = std::sin((i * (stride + 1)) * dx);
     }
+
+#ifndef NDEBUG
+    // Each processor should print its own rhsInterface within a loop with mpi barrier
+    for (int i = 0; i < size; i++)
+    {
+        if (rank == i)
+        {
+            std::cout << "rhsInterface for processor " << rank << std::endl;
+            for (unsigned int j = 0; j < schurSize; j++)
+            {
+                std::cout << rhsInterface[j] << " ";
+            }
+            std::cout << std::endl
+                      << std::endl;
+        }
+        MPI_Barrier(comm);
+    }
+#endif
 }
 
 void SchurSolver::extractRhsAj(double rhsAi[], unsigned int j)
@@ -364,23 +501,44 @@ void SchurSolver::extractRhsAj(double rhsAi[], unsigned int j)
 void SchurSolver::buildRhs()
 {
     // Global part of the rhs: forcing term
-    // If we are not the first processor, we also have a left shared boundary
-    if (rank > 0)
+    /*
+        rhs[i] = std::sin((i + 1) * dx);
+        rhs[n - 1] = std::sin(1.0) / (dx * dx) + std::sin(n * dx);
+    */
+
+    for (unsigned int i = 0; i < local_n; ++i)
     {
-        const unsigned int global_index = rank - 1;
-        localRhs[0] = rhs[global_index];
+        const unsigned int global_index = rank * (local_n + 1) + i;
+        localRhs[i] = std::sin((global_index + 1) * dx);
     }
-    // Non-shared part of the rhs
-    for (unsigned int i = 1; i < local_n + 1; ++i)
+
+    if (rank == size - 1)
     {
-        const unsigned int global_index = rank + i - 1;
-        localRhs[i] = rhs[global_index];
+        localRhs[local_n - 1] += std::sin(1.0) / (dx * dx);
     }
-    // If we are not the last processor, we also have a right shared boundary
-    if (rank < size - 1)
+}
+
+void SchurSolver::buildExactSolution()
+{
+    for (unsigned int i = 0; i < local_n; i++)
     {
-        const unsigned int global_index = rank + local_n;
-        localRhs[n + 1] = rhs[global_index];
+        const unsigned int global_index = rank * (local_n + 1) + i;
+        exactSolution[i] = std::sin((global_index + 1) * dx);
+    }
+    // build solution at rhs
+    unsigned int global_index_first = rank * (local_n + 1) - 1;
+    unsigned int global_index_last = rank * (local_n + 1) + local_n;
+
+    exactSolutionInterface[0] = 0.0;
+    exactSolutionInterface[1] = 0.0;
+
+    if (rank != 0)
+    {
+        exactSolutionInterface[0] = std::sin((global_index_first + 1) * dx);
+    }
+    if (rank != size - 1)
+    {
+        exactSolutionInterface[1] = std::sin((global_index_last + 1) * dx);
     }
 }
 

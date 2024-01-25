@@ -1,6 +1,8 @@
 #ifndef SCHURSOLVER_HPP
 #define SCHURSOLVER_HPP
 
+#define NDEBUG
+
 #define A_PLUS 0
 #define A_MINUS 1
 
@@ -25,10 +27,9 @@ class SchurSolver
 public:
     // Constructor.
     SchurSolver(const MPI_Comm &comm_, const int &n_, const int &numDecomp_,
-                const double &dx_, const double *rhs_,
-                const double *exactSolution_, double diagElem_,
+                const double &dx_, double diagElem_,
                 double upperElem_, double lowerElem_)
-        : n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), rhs(rhs_), exactSolution(exactSolution_), comm(comm_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
+        : n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), comm(comm_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
     {
         // get MPI ID
         MPI_Comm_rank(comm, &rank);
@@ -69,8 +70,9 @@ protected:
     const unsigned int numDecomp;          // Number of decomposition of the system
     const unsigned int schurSize; // Size of the Schur complement
     const double dx;              // Step size
-    const double *rhs;            // Rhs of the problem
-    const double *exactSolution;  // Exact solution of the problem
+    double *rhs;            // Rhs of the problem
+    double *exactSolution;  // Exact solution of the problem
+    _MPI_LOCAL double exactSolutionInterface[2]; // Solution at the interface points
 
     // MPI rank
     int rank;
@@ -86,6 +88,7 @@ protected:
     _MPI_LOCAL double lateralElements_D[2]; // First element is a+ and the second is c-
     _MPI_LOCAL double bottomElements_E[2];  // First element is c+ and the second is a-
     _MPI_GLOBAL double *schurRhs;           // Schur rhs; shared by all processors.
+    _MPI_LOCAL double solutionInterfaceValues[2]; // First element is the value of the solution at the interface point i-1 and the second is the value of the solution at the interface point i
 
     double diagElem;                  // Value of the diagonal elements of the initial matrix
     double upperElem;                 // Value of the elements of the 1st upper diagonal of the initial matrix
@@ -136,6 +139,9 @@ protected:
     // Build lateral elements
     void buildLateralElements();
 
+    // Build exact solution
+    void buildExactSolution();
+
     // Implementation of the Thomas Algorithm.
     // Used to solve a linear system of the form: A * solution = rhs
     // where A is a tridiagonal matrix.
@@ -145,7 +151,7 @@ protected:
 
     void thomasAlgorithm(_OUT double *solution, const double *const diag,
                          const double *const upperDiag, const double *const lowerDiag,
-                         const double *const rhs, const int &dim) const;
+                         const double *const rhs, const unsigned int &dim) const;
 
     // Modified version of the Thomas algorithm used for solving simultaneously
     // 2 different linear systems having the same matrix A and rhs as follow:
