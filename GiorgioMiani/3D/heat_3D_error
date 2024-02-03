@@ -1,0 +1,3 @@
+Error with 20 points: 1.89122e-08 delta x: 0.047619
+Error with 40 points: 1.6966e-09 delta x: 0.0243902
+Error with 80 points: 1.50992e-10 delta x: 0.0123457

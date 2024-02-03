@@ -36,7 +36,6 @@ void matrix_assemble(SpMat &A, const int N, const double deltaX, const double de
             }                        
         }
     }
-
     A.setFromTriplets(triplets.begin(), triplets.end());
 
     // std::cout << A << std::endl;
@@ -51,22 +50,25 @@ void rhs_assemble(SpVec &rhs, SpVec &old_solution, const int N, const double del
     for (int k = 0; k < N; k++){
         for(int j = 0; j < N; j++){
             for(int i = 0; i < N; i ++){
-                //Force
-                rhs(i + (j)*N  + (k)*N*N) = std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX)*std::sin((k + 1) * deltaX)*(3 * std::sin(t - deltaT/2) + std::cos(t - deltaT/2));
+                //Forcing term
+                rhs(i + (j)*N  + (k)*N*N) = std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX)*
+                                            std::sin((k + 1) * deltaX)*(3 * std::sin(t - deltaT/2) + std::cos(t - deltaT/2));
 
                 // Boundary conditions on T at step n + 1
-
                 if(i == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((j + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(t))/(2*deltaX*deltaX);// i == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((j + 1) * deltaX) * std::sin((k + 1) * deltaX) * 
+                                                    std::sin(t))/(2*deltaX*deltaX);// i == N-1
                 }
                 if(j == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin((i + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(1.0) * std::sin(t))/(2*deltaX*deltaX); // k == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin((i + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(1.0) * 
+                                                    std::sin(t))/(2*deltaX*deltaX); // k == N-1
                 }
                 if(k == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX) * std::sin(t))/(2*deltaX*deltaX); // j == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX) * 
+                                                    std::sin(t))/(2*deltaX*deltaX); // j == N-1
                 }
 
-                //old solution on rhs
+                //Old solution on rhs
                 rhs(i + (j)*N  + (k)*N*N) += diag_coef * old_solution(i + (j)*N  + (k)*N*N);
                 if(i > 0)
                     rhs(i + (j)*N  + (k)*N*N) += coef * old_solution(i - 1 + (j)*N  + (k)*N*N);
@@ -81,15 +83,18 @@ void rhs_assemble(SpVec &rhs, SpVec &old_solution, const int N, const double del
                 if(k < N - 1)
                     rhs(i + (j)*N  + (k)*N*N) += coef * old_solution(i + (j)*N  + (k + 1)*N*N);
 
-                //Boundary Conditions on old solution
+                //Boundary Conditions on T at step n
                 if(i == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((j + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(t - deltaT))/(2*deltaX*deltaX);// i == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((j + 1) * deltaX) * std::sin((k + 1) * deltaX) * 
+                                                    std::sin(t - deltaT))/(2*deltaX*deltaX);// i == N-1
                 }
                 if(j == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin((i + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(1.0) * std::sin(t - deltaT))/(2*deltaX*deltaX); // k == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin((i + 1) * deltaX) * std::sin((k + 1) * deltaX) * std::sin(1.0) * 
+                                                    std::sin(t - deltaT))/(2*deltaX*deltaX); // k == N-1
                 }
                 if(k == N - 1){
-                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX) * std::sin(t - deltaT))/(2*deltaX*deltaX); // j == N-1
+                    rhs(i + (j)*N  + (k)*N*N) +=  (std::sin(1.0) * std::sin((i + 1) * deltaX) * std::sin((j + 1) * deltaX) * 
+                                                    std::sin(t - deltaT))/(2*deltaX*deltaX); // j == N-1
                 }
             }                        
         }
@@ -101,9 +106,9 @@ void system_solver(SpMat &A, SpVec &rhs, SpVec &solution){
     //Create preconditioner
     // Eigen::IncompleteLUT<double> preconditioner(A);
     // preconditioner.compute(A); 
-    // Use Conjugate Gradient solver to solve the linear system
 
-    Eigen::BiCGSTAB<SpMat> solver;
+    // Use Conjugate Gradient solver to solve the linear system
+    Eigen::ConjugateGradient<SpMat> solver;
 
     solver.setTolerance(1e-10);
 
@@ -143,7 +148,7 @@ int main(int argc, char* argv[]){
     std::vector<double> errors;
     std::vector<double> deltaXs;
 
-    int const  N_vec[3] = {20, 40, 60};
+    int const  N_vec[3] = {10, 40, 50};
     for (int N:N_vec) {
 
         int const dim = N*N*N;
@@ -178,29 +183,29 @@ int main(int argc, char* argv[]){
 
         std::cout << "Matrix assemble time: "
                     << matrix_assemble.count() << " seconds " << std::endl << std::endl;    
+            start_time
+                = std::chrono::system_clock::now();
 
         while (t <= 1.0){
 
             rhs_assemble(rhs, solution, N, deltaX, t, deltaT);
 
-            start_time
-                = std::chrono::system_clock::now();
 
             system_solver(A, rhs, solution);
-
-            end_time
-                = std::chrono::system_clock::now();
-
-            std::chrono::duration<double> solving_time 
-                = end_time - start_time;
-
-
-            std::cout << "System solving time: "
-                        << solving_time.count() << " seconds " << std::endl << std::endl; 
 
             t += deltaT;
 
         }   
+
+        end_time
+            = std::chrono::system_clock::now();
+
+        std::chrono::duration<double> solving_time 
+            = end_time - start_time;
+
+
+            std::cout << "System solving time: "
+                        << solving_time.count() << " seconds " << std::endl << std::endl; 
 
         double error = error_computation(solution, real_solution, N, deltaX)/dim;
 

@@ -13,7 +13,7 @@ int main(int argc, char* argv[])
 {
 
     
-    int N[7] = {100,1000,10000,100000, 1000000, 10000000, 100000000};
+    int N[7] = {100,1000,10000,100000, 1000000, 10000000};
     for (int n:N) {
     const double deltaX = 1.0/(n+1);
 
@@ -27,7 +27,6 @@ int main(int argc, char* argv[])
 
     a = -1/(deltaX*deltaX);
 
-#pragma omp parallel for num_threads(10)
     for (int i = 0; i <= n - 1; i++){
         b(i) = 2/(deltaX*deltaX);
         f(i) = std::sin((i + 1) * deltaX);
@@ -63,7 +62,7 @@ int main(int argc, char* argv[])
     for(int i=0; i < n; i++){
         real_solution(i) = std::sin((i + 1) * deltaX); 
     }
-    std::cout << "Error with " << n << " points: " << ((solution - real_solution)/n).norm() << "Delta x: " << deltaX << std::endl; 
+    std::cout << "Error with " << n << " points: " << ((solution - real_solution)).norm()/n << " Delta x: " << deltaX << std::endl; 
 
     std::cout << "Assembly duration: "
               << assembly_duration.count()*1000 << " milliseconds " << std::endl;
