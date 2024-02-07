@@ -38,7 +38,7 @@ public:
         MPI_Comm_size(comm, &size);
 
         // print size and rank
-        std::cout << "Rank: " << rank << " size: " << size << std::endl;
+        //std::cout << "Rank: " << rank << " size: " << size << std::endl;
 
         error = 0.0;
         dimSubmatrix = (n - numDecomp + 1) / numDecomp;
@@ -48,14 +48,25 @@ public:
     }
 
     // Destructor
-    ~SchurSolver()
+    /*~SchurSolver()
     {
         delete[] matrixDiag;
         delete[] matrixUpperDiag;
         delete[] matrixLowerDiag;
         delete[] localRhs;
         delete[] schurRhs;
-    }
+        delete[] xi;
+        delete[] yi;
+        delete[] xm;
+        delete[] ym;
+        delete[] exactSolution;
+        delete[] rhsInterface;  
+        delete[] solution;
+        delete[] yStorage;
+        delete[] diagS;
+        delete[] upperDiagS;
+        delete[] lowerDiagS;
+    }*/
 
     // Solve the heat equation in 1D.
     void solve();
@@ -66,12 +77,12 @@ public:
 protected:
     const unsigned int n; // Number of points
     // TODO initialise
-    const unsigned int local_n;            // Number of local points EXCLUDING the interface points
-    const unsigned int numDecomp;          // Number of decomposition of the system
-    const unsigned int schurSize; // Size of the Schur complement
-    const double dx;              // Step size
-    double *rhs;            // Rhs of the problem
-    double *exactSolution;  // Exact solution of the problem
+    const unsigned int local_n;                  // Number of local points EXCLUDING the interface points
+    const unsigned int numDecomp;                // Number of decomposition of the system
+    const unsigned int schurSize;                // Size of the Schur complement
+    const double dx;                             // Step size
+    double *rhs;                                 // Rhs of the problem
+    double *exactSolution;                       // Exact solution of the problem
     _MPI_LOCAL double exactSolutionInterface[2]; // Solution at the interface points
 
     // MPI rank
@@ -81,13 +92,13 @@ protected:
     // MPI communicator
     MPI_Comm comm;
 
-    _MPI_LOCAL double *matrixDiag;          // Diagonal elements of the initial matrix
-    _MPI_LOCAL double *matrixUpperDiag;     // Upper diagonal elements of the initial matrix
-    _MPI_LOCAL double *matrixLowerDiag;     // Lower diagonal elements of the initial matrix
-    _MPI_LOCAL double *localRhs;            // Local rhs of the problem
-    _MPI_LOCAL double lateralElements_D[2]; // First element is a+ and the second is c-
-    _MPI_LOCAL double bottomElements_E[2];  // First element is c+ and the second is a-
-    _MPI_GLOBAL double *schurRhs;           // Schur rhs; shared by all processors.
+    _MPI_LOCAL double *matrixDiag;                // Diagonal elements of the initial matrix
+    _MPI_LOCAL double *matrixUpperDiag;           // Upper diagonal elements of the initial matrix
+    _MPI_LOCAL double *matrixLowerDiag;           // Lower diagonal elements of the initial matrix
+    _MPI_LOCAL double *localRhs;                  // Local rhs of the problem
+    _MPI_LOCAL double lateralElements_D[2];       // First element is a+ and the second is c-
+    _MPI_LOCAL double bottomElements_E[2];        // First element is c+ and the second is a-
+    _MPI_GLOBAL double *schurRhs;                 // Schur rhs; shared by all processors.
     _MPI_LOCAL double solutionInterfaceValues[2]; // First element is the value of the solution at the interface point i-1 and the second is the value of the solution at the interface point i
 
     double diagElem;                  // Value of the diagonal elements of the initial matrix
@@ -99,8 +110,8 @@ protected:
     _MPI_GLOBAL double *diagS;        // Schur complement main diagonal
     _MPI_GLOBAL double *upperDiagS;   // Schur complement 1st upper diagonal
     _MPI_GLOBAL double *lowerDiagS;   // Schur complement 1st lower diagonal
-    unsigned int dimSubmatrix;                 // Dim of the first n-1 submatrices A0, A1, ..., An-2
-    unsigned int dimLatestSubmatrix;           // Dim of the latest submatrix An-1
+    unsigned int dimSubmatrix;        // Dim of the first n-1 submatrices A0, A1, ..., An-2
+    unsigned int dimLatestSubmatrix;  // Dim of the latest submatrix An-1
 
     double *xi; // xi corresponds to the column i-1 of (Ai^(-1)*Di)
     double *yi; // yi corresponds to the column i of (Ai^(-1)*Di)

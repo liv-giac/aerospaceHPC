@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 #endif
     MPI_Init(&argc, &argv);
 
-    unsigned int spaces[] = {10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
+    unsigned int spaces[] = {351, 3231, 32031, 320031, 3200031, 32000031, 320000031, 3200000031};
 
     constexpr size_t iterations = std::end(spaces) - std::begin(spaces);
 
@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
         const unsigned int n = spaces[idx]; // Number of points
         // const int numDecomp = 4;               // Number of decomposition of the system
         double dx = 1.0 / (double)(n + 1);             // Step size
-        double *rhs = new double[n];           // Rhs of the problem
-        double *exactSolution = new double[n]; // Exact solution of the problem
+        //double *rhs = new double[n];           // Rhs of the problem
+        //double *exactSolution = new double[n]; // Exact solution of the problem
         double diagElem = 2.0 / (dx * dx);     // Diagonal element of the matrix
         double upperElem = -1.0 / (dx * dx);   // Upper diagonal element of the matrix
         double lowerElem = -1.0 / (dx * dx);   // Lower diagonal element of the matrix
@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
         {
             std::cout << "============================================" << std::endl;
             std::cout << "Error with " << n << " points: " << solver.getError() << std::endl;
-            std::cout << "Time: " << elapsed / 1e9 << " s " << std::endl;
-            std::cout << "Seconds per point: " << time.count() / (double)n << std::endl;
+            std::cout << "Time: " << (double)elapsed / 1e9 << " s " << std::endl;
+            std::cout << "Seconds per point: " << ((double)elapsed / 1e9) / (double)n << std::endl;
             std::cout << "============================================" << std::endl;
         }
     }

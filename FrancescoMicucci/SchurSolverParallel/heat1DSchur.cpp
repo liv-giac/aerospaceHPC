@@ -234,6 +234,7 @@ void SchurSolver::updateSchurRhs()
 
     MPI_Allgather(localSchurRhsBuffer, 2, MPI_DOUBLE, intermediateProductsBuffer, 2, MPI_DOUBLE, comm);
 
+
     // Reduce step
     schurRhs[0] = -(intermediateProductsBuffer[1] + intermediateProductsBuffer[2]); // b_0 + a_1
     for (unsigned int i = 1; i < schurSize - 1; ++i)
@@ -248,9 +249,6 @@ void SchurSolver::updateSchurRhs()
         schurRhs[i] += rhsInterface[i];
     }
 
-    // Free memory
-    delete[] intermediateProductsBuffer;
-
 #ifndef NDEBUG
     // Print the Schur rhs
     if (rank == 0)
@@ -263,6 +261,9 @@ void SchurSolver::updateSchurRhs()
         std::cout << std::endl;
     }
 #endif
+
+    // Free memory
+    delete[] intermediateProductsBuffer;
 }
 
 void SchurSolver::computeSolution()
