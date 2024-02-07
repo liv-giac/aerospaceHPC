@@ -276,8 +276,8 @@ inline void apply_bcs(vector &rhs, const solve_direction &dir)
 
 int main()
 {
-    const unsigned int spaces[] = {100};
-    const unsigned int times[] = {10};
+    const unsigned int spaces[] = {10,20,40,100};
+    const unsigned int times[] = {400,1600,6400,40000};
 
     const double length = 1.0; // [m]
 
@@ -372,7 +372,7 @@ int main()
                 solution_vec[i] = solution_vec_old[i] + delta_solution[i];
             }
 
-            std::cout << "Solved time step " << _cur_time_step << std::endl;
+            //std::cout << "Solved time step " << _cur_time_step << std::endl;
         }
 
         auto end = std::chrono::high_resolution_clock::now();

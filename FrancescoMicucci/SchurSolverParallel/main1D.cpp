@@ -12,38 +12,45 @@ int main(int argc, char *argv[])
 #endif
     MPI_Init(&argc, &argv);
 
-    const int n = 6400; // Number of points
-    // const int numDecomp = 4;               // Number of decomposition of the system
-    double dx = 1.0 / (n + 1);             // Step size
-    double *rhs = new double[n];           // Rhs of the problem
-    double *exactSolution = new double[n]; // Exact solution of the problem
-    double diagElem = 2.0 / (dx * dx);     // Diagonal element of the matrix
-    double upperElem = -1.0 / (dx * dx);   // Upper diagonal element of the matrix
-    double lowerElem = -1.0 / (dx * dx);   // Lower diagonal element of the matrix
+    unsigned int spaces[] = {10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
 
-    auto start = std::chrono::high_resolution_clock::now();
+    constexpr size_t iterations = std::end(spaces) - std::begin(spaces);
 
-    // Get MPI size
-    int size;
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    // Get MPI rank
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    SchurSolver solver(MPI_COMM_WORLD, n, size, dx, diagElem, upperElem, lowerElem);
-    solver.solve();
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> time = end - start;
-
-    if (rank == 0)
+    for (unsigned int idx = 0; idx < iterations; ++idx)
     {
-        std::cout << "============================================" << std::endl;
-        std::cout << "Error with " << n << " points: " << solver.getError() << std::endl;
-        std::cout << "Time: " << time.count() * 1000 << " milliseconds " << std::endl;
-        std::cout << "Seconds per point: " << time.count() / n << std::endl;
-        std::cout << "============================================" << std::endl;
+        const unsigned int n = spaces[idx]; // Number of points
+        // const int numDecomp = 4;               // Number of decomposition of the system
+        double dx = 1.0 / (double)(n + 1);             // Step size
+        double *rhs = new double[n];           // Rhs of the problem
+        double *exactSolution = new double[n]; // Exact solution of the problem
+        double diagElem = 2.0 / (dx * dx);     // Diagonal element of the matrix
+        double upperElem = -1.0 / (dx * dx);   // Upper diagonal element of the matrix
+        double lowerElem = -1.0 / (dx * dx);   // Lower diagonal element of the matrix
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        // Get MPI size
+        int size;
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+        // Get MPI rank
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+        SchurSolver solver(MPI_COMM_WORLD, n, size, dx, diagElem, upperElem, lowerElem);
+        solver.solve();
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+        if (rank == 0)
+        {
+            std::cout << "============================================" << std::endl;
+            std::cout << "Error with " << n << " points: " << solver.getError() << std::endl;
+            std::cout << "Time: " << elapsed / 1e9 << " s " << std::endl;
+            std::cout << "Seconds per point: " << time.count() / (double)n << std::endl;
+            std::cout << "============================================" << std::endl;
+        }
     }
 
     MPI_Finalize();

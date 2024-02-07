@@ -26,7 +26,7 @@ class SchurSolver
 {
 public:
     // Constructor.
-    SchurSolver(const MPI_Comm &comm_, const int &n_, const int &numDecomp_,
+    SchurSolver(const MPI_Comm &comm_, const unsigned int &n_, const int &numDecomp_,
                 const double &dx_, double diagElem_,
                 double upperElem_, double lowerElem_)
         : n(n_), local_n((n - numDecomp_ + 1) / numDecomp_), numDecomp(numDecomp_), schurSize(numDecomp_ - 1), dx(dx_), comm(comm_), diagElem(diagElem_), upperElem(upperElem_), lowerElem(lowerElem_)
@@ -64,7 +64,7 @@ public:
     double getError() const { return error; }
 
 protected:
-    const int n; // Number of points
+    const unsigned int n; // Number of points
     // TODO initialise
     const unsigned int local_n;            // Number of local points EXCLUDING the interface points
     const unsigned int numDecomp;          // Number of decomposition of the system

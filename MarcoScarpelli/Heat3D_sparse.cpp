@@ -141,8 +141,8 @@ unsigned int solve_system(const matrix &A, const vector &b, vector &x, const uns
 
 int main()
 {
-    const unsigned int spaces[] = {30};
-    const unsigned int times[] = {10};
+    const unsigned int spaces[] = {20};
+    const unsigned int times[] = {1600};
 
     const double length = 1.0; // [m]
 
@@ -150,6 +150,7 @@ int main()
 
     for (unsigned int idx = 0; idx < iterations; ++idx)
     {
+	std::cout << idx << std::endl;
         const unsigned int space_steps = spaces[idx];
         const unsigned int time_steps = times[idx];
 
@@ -208,7 +209,7 @@ int main()
 
         for (unsigned int time_step = 0; time_step < time_steps; ++time_step)
         {
-            std::cout << "Time step: " << time_step << std::endl;
+            std::cout << "Time step: " << time_step << " idx: " << idx << std::endl;
 // Init rhs vector
 #pragma omp parallel for
             for (unsigned int i = 0; i < space_steps; ++i)

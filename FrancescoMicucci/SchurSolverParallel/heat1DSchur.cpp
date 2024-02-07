@@ -81,6 +81,7 @@ void SchurSolver::computeSchurComplement()
     // Last processor only has the first value that is non-zero
     diagS[numDecomp - 2] -= s_buffer[(size - 1) * 4];
 
+#ifndef NDEBUG
     if (rank == 0)
     {
         std::cout << "Schur's complement matrix:" << std::endl;
@@ -100,6 +101,7 @@ void SchurSolver::computeSchurComplement()
             std::cout << std::endl;
         }
     }
+#endif
 }
 
 void SchurSolver::updateSchurRhs()
@@ -456,6 +458,10 @@ void SchurSolver::schurSubsystemsSolver(_OUT double x[], _OUT double y[],
         x[i] = (d[i] - upperDiag * x[i + 1]) / b[i];
         y[i] = (-upperDiag * y[i + 1]) / b[i];
     }
+
+    // Free memory
+    delete[] b;
+    delete[] d;
 }
 
 void SchurSolver::extractRhsInterface()
